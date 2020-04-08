@@ -7,9 +7,16 @@ import '../providers/products_provider.dart';
 import '../providers/product_provider.dart';
 
 class ProductGridWidget extends StatelessWidget {
+
+  final bool filterFavorites;
+
+  ProductGridWidget({
+    @required this.filterFavorites,
+  });
+
   @override
   Widget build(BuildContext context) {
-    // Commented out Provider.of<> approach to try out an alternate way of setting-up listener in a widget for the 
+    // Commented out Provider.of<> approach to try out an alternate way of setting-up listener in a widget for the
     // provider: ProductsProvider. The below line of code is perfectly fine to set-up a listener and works.
 
     // final List<ProductProvider> productList = Provider.of<ProductsProvider>(
@@ -17,14 +24,27 @@ class ProductGridWidget extends StatelessWidget {
     //     .products; // Fetching product list from the data provider: ProductsProvider
 
     return Consumer<ProductsProvider>(
-      builder: (context, productsProvider, _) { // The Conusmer provides access to an instance of provider, through which further
-                                                // calls or references to methods, attributes of the Provider class can be done
-                                                // to retrieve data, like the list of products below using the "products" get method.
-                                                // Also, the named attribute "child" has been ignored (with an "_") in the builder method, as the 
-                                                // GridView.builder constructor itself doesn't contrsuct a widget to display static 
-                                                // content like a label, using a Text widget.
+      builder: (context, productsProvider, _) {
+        // The Conusmer provides access to an instance of provider, through which further
+        // calls or references to methods, attributes of the Provider class can be done
+        // to retrieve data, like the list of products below using the "products" get method.
+        // Also, the named attribute "child" has been ignored (with an "_") in the builder method, as the
+        // GridView.builder constructor itself doesn't contrsuct a widget to display static
+        // content like a label, using a Text widget.
 
-        final List<ProductProvider> productList = productsProvider.products;
+        List<ProductProvider> productList;
+        
+        // Additional check for data from parent widget ProductListingScreen, to know if user has chosen the favorites filter
+        // or not. Accordingly, the appropriate list of products are being rendered from the provider: ProductsProvider, to be
+        // displayed in a grid.
+        
+        if(filterFavorites){
+          productList = productsProvider.favoriteProducts;
+        }
+        else{
+          productList = productsProvider.products;
+        }
+        
 
         return GridView.builder(
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
