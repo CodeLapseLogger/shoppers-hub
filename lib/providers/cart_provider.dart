@@ -17,7 +17,7 @@ class CartItem {
 
 // Class representing the collection of cart items, with the mixin ChangeNotifier, giving it the capability of broadcasting or
 // notifying the registered listeners in the widget tree for data changes from this Cart class turned data provider.
-class Cart with ChangeNotifier {
+class CartProvider with ChangeNotifier {
   Map<String, CartItem> _cartItems;
 
   Map<String, CartItem> get cartItems {
