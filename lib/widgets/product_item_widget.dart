@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../screens/product_detail_screen.dart';
 
 import '../providers/product_provider.dart';
+import '../providers/cart_provider.dart';
 
 class ProductItemWidget extends StatelessWidget {
   // final String productId;
@@ -39,6 +40,8 @@ class ProductItemWidget extends StatelessWidget {
     // wrapping the sub-widget with the Consumer<> widget and localizing the effect,
     // which also improves the user experience with reduced work with the widget/UI
     // rebuild.
+
+    final CartProvider cart = Provider.of<CartProvider>(context, listen: false);
 
     return Container(
       decoration: BoxDecoration(
@@ -105,7 +108,7 @@ class ProductItemWidget extends StatelessWidget {
                 Icons.shopping_cart,
                 color: Theme.of(context).accentColor,
               ),
-              onPressed: () {},
+              onPressed: () => cart.addItem(product.id, product.title, product.price), // Adds/updates the product item/quantity in the cart.
             ),
           ),
         ),

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import './screens/products_listing_screen.dart';
 import './screens/product_detail_screen.dart';
+import './screens/cart_detail_screen.dart';
 
 import './providers/products_provider.dart';
 import './providers/cart_provider.dart';
@@ -14,7 +15,8 @@ class ShoppingApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
+    return MultiProvider( // Provider that registers multiple data sources as providers at a given node, allowing data channels
+                          // to listeners at different widget nodes down the app widget tree, through the "providers" attribute.
       providers: [
         ChangeNotifierProvider.value(
           // ChangeNotifierProvider is to setup the provider: ProductsProvider in the
@@ -44,6 +46,7 @@ class ShoppingApp extends StatelessWidget {
         routes: {
           //ProductsListingScreen.routeName : (context) => ProductsListingScreen(), // redundant home route declaration
           ProductDetailScreen.routeName: (context) => ProductDetailScreen(),
+          CartDetailScreen.routeName: (context) => CartDetailScreen()
         },
       ),
     );
