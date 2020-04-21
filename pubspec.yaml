@@ -28,6 +28,10 @@ dependencies:
   # in your application.
   provider: ^3.2.0
 
+  # The following adds different possible formats/representations for
+  # date/time strings.
+  intl: ^0.16.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

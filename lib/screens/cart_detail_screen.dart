@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/cart_provider.dart';
+import '../providers/orders_provider.dart';
 
 import '../widgets/cart_item_widget.dart';
 
@@ -54,7 +55,18 @@ class CartDetailScreen extends StatelessWidget {
                       backgroundColor: Theme.of(context).primaryColor,
                     ),
                     FlatButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        // Add cart item collection as an order to the OrdersProvider.
+                        Provider.of<OrdersProvider>(context).addOrder(
+                          DateTime.now().toString(),
+                          cartDetails.cartItems.values.toList(),
+                          cartDetails.totalItemPrice,
+                          DateTime.now(),
+                        );
+
+                        // Clear cart items
+                        cartDetails.clear();
+                      },
                       child: Text(
                         'Place Order',
                         style: TextStyle(

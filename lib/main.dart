@@ -4,9 +4,11 @@ import 'package:provider/provider.dart';
 import './screens/products_listing_screen.dart';
 import './screens/product_detail_screen.dart';
 import './screens/cart_detail_screen.dart';
+import './screens/orders_screen.dart';
 
 import './providers/products_provider.dart';
 import './providers/cart_provider.dart';
+import './providers/orders_provider.dart';
 
 void main() => runApp(ShoppingApp());
 
@@ -15,8 +17,9 @@ class ShoppingApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MultiProvider( // Provider that registers multiple data sources as providers at a given node, allowing data channels
-                          // to listeners at different widget nodes down the app widget tree, through the "providers" attribute.
+    return MultiProvider(
+      // Provider that registers multiple data sources as providers at a given node, allowing data channels
+      // to listeners at different widget nodes down the app widget tree, through the "providers" attribute.
       providers: [
         ChangeNotifierProvider.value(
           // ChangeNotifierProvider is to setup the provider: ProductsProvider in the
@@ -32,7 +35,11 @@ class ShoppingApp extends StatelessWidget {
               ProductsProvider(), // This is an instance of the provider and not a widget.
         ),
         ChangeNotifierProvider.value(
-          value: CartProvider(), // Provider of cart items to listeners down the widget tree from this widget node.
+          value:
+              CartProvider(), // Provider of cart items to listeners down the widget tree from this widget node.
+        ),
+        ChangeNotifierProvider.value(
+          value: OrdersProvider(),
         ),
       ],
       child: MaterialApp(
@@ -46,7 +53,8 @@ class ShoppingApp extends StatelessWidget {
         routes: {
           //ProductsListingScreen.routeName : (context) => ProductsListingScreen(), // redundant home route declaration
           ProductDetailScreen.routeName: (context) => ProductDetailScreen(),
-          CartDetailScreen.routeName: (context) => CartDetailScreen()
+          CartDetailScreen.routeName: (context) => CartDetailScreen(),
+          OrdersScreen.routeName: (context) => OrdersScreen(),
         },
       ),
     );

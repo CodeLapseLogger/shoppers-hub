@@ -113,4 +113,15 @@ class CartProvider with ChangeNotifier {
       notifyListeners(); // Never forget this line of code to notify listeners on data changes in a provider.
     }
   }
+
+
+  // Method for listeners to clear all cart items
+  void clear(){
+
+    _cartItems.clear(); // empties the map.
+
+    notifyListeners();
+  }
+
+
 }

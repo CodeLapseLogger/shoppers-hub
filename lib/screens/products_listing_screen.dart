@@ -5,6 +5,7 @@ import './cart_detail_screen.dart';
 
 import '../widgets/product_grid_widget.dart'; // Renders the product grid
 import '../widgets/badge_widget.dart'; // Renders shopping cart icon with item count in a badge.
+import '../widgets/side_drawer_widget.dart'; // Renders the Drawer widget from the side with screen widgets for app navigation.
 
 import '../providers/cart_provider.dart'; // CartProvider class definition
 
@@ -99,6 +100,7 @@ class _ProductsListingScreenState extends State<ProductsListingScreen> {
           ),
         ],
       ),
+      drawer: SideDrawerWidget(),
       body: ProductGridWidget(
           filterFavorites:
               filterFavorites), // The widget that was originally here has now been made in to a separate Stateless widget,
