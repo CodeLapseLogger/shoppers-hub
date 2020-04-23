@@ -79,15 +79,16 @@ class ProductItemWidget extends StatelessWidget {
               product.title,
               textAlign: TextAlign.center,
             ),
-            leading: Consumer<ProductProvider>( // Listener to constantly look out for changes to the "favorite" state from
-                                                // the associated ProductProvider, up the widget tree, which when found is set
-                                                // to the "product" argument in the builder method.
-                                                // The "_"  argument is the named "child" argument which is being ignored here,
-                                                // hence the "_". If there are parts of the widget that are to still remain 
-                                                // unchanged then the "child" argument of the Consumer<> widget can be set,
-                                                // which is then assigned to "child" argument of the builder method in Consumer<>.
-                                                // That wiring between the Consumer<> named "child" attribute and the builder 
-                                                // "child" attribute is taken care of by Flutter.
+            leading: Consumer<ProductProvider>(
+              // Listener to constantly look out for changes to the "favorite" state from
+              // the associated ProductProvider, up the widget tree, which when found is set
+              // to the "product" argument in the builder method.
+              // The "_"  argument is the named "child" argument which is being ignored here,
+              // hence the "_". If there are parts of the widget that are to still remain
+              // unchanged then the "child" argument of the Consumer<> widget can be set,
+              // which is then assigned to "child" argument of the builder method in Consumer<>.
+              // That wiring between the Consumer<> named "child" attribute and the builder
+              // "child" attribute is taken care of by Flutter.
               builder: (context, product, _) {
                 return IconButton(
                   icon: product.isFavorite
@@ -108,7 +109,55 @@ class ProductItemWidget extends StatelessWidget {
                 Icons.shopping_cart,
                 color: Theme.of(context).accentColor,
               ),
-              onPressed: () => cart.addItem(product.id, product.title, product.price), // Adds/updates the product item/quantity in the cart.
+              onPressed: () {
+                cart.addItem(
+                    product.id,
+                    product.title,
+                    product
+                        .price); // Adds/updates the product item/quantity in the cart.
+                int currentItemQuantity = cart.cartItems.values
+                    .where((cartItem) {
+                      return cartItem.name == product.title;
+                    })
+                    .toList()[0]
+                    .quantity;
+
+                Scaffold.of(context)
+                    .hideCurrentSnackBar(); // This comes in handy for immediate successive clicks on the shopping cart icon,
+                // By closing the snackbar for prior click first before triggering snackbar for
+                // current click event.
+                Scaffold.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Added "${product.title}" to cart (quantity: $currentItemQuantity)',
+                    ),
+                    action: SnackBarAction(
+                        label: "UNDO",
+                        onPressed: () {
+                          CartItem revertedCartItem =
+                              cart.reduceProductQuantityByOne(product.id);
+                          print(
+                              'Item name: ${revertedCartItem.name}, quantity before undo: $currentItemQuantity, quantity after undo: ${revertedCartItem.quantity}');
+                          Scaffold.of(context).showSnackBar(
+                            SnackBar(
+                              content: (currentItemQuantity ==
+                                      revertedCartItem.quantity)
+                                  ? Text(
+                                      'Removed "${revertedCartItem.name}" from cart',
+                                      textAlign: TextAlign.center,
+                                    )
+                                  : Text(
+                                      'Reduced "${revertedCartItem.name}" quantity to ${revertedCartItem.quantity}',
+                                      textAlign: TextAlign.center,
+                                    ),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        }),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              },
             ),
           ),
         ),

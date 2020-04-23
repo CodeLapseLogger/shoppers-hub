@@ -43,6 +43,14 @@ class ProductsProvider with ChangeNotifier {
       imageUrl:
           'https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Cast-Iron-Pan.jpg/1024px-Cast-Iron-Pan.jpg',
     ),
+    ProductProvider(
+      id: 'p5',
+      title: 'Nike Shoes',
+      description: 'Breatheble uppers and cushioned inners - Get your pair today !',
+      price: 79.99,
+      imageUrl:
+          'https://c.static-nike.com/a/images/t_PDP_1280_v1/f_auto/uwjw39b1xdsbtmfnxjqm/tanjun-shoe-MkTmejeq.jpg',
+    ),
   ];
 
 

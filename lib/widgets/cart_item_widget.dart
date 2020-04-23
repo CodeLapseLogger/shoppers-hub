@@ -31,15 +31,55 @@ class CartItemWidget extends StatelessWidget {
           Icons.delete,
           color: Theme.of(context).primaryIconTheme.color,
           size: 30,
-
         ),
         color: Theme.of(context).errorColor,
         margin: EdgeInsets.symmetric(
           horizontal: 10,
           vertical: 8,
         ),
-        padding: EdgeInsets.only(right: 12,),
+        padding: EdgeInsets.only(
+          right: 12,
+        ),
       ),
+      confirmDismiss: (_) {
+        return showDialog( // showDialog is a way to place a dialog widget on the app screen from a function that
+                           // doesn't return a widget. It is not tied to any widget on the app screen ( like Scaffold), so, it
+                           // is called directly.
+                           
+                           // Don't forget to return the Future<bool> given by showDialog method call, or else the desired effect
+                           // of dialog pop and chosen action can not be seen in the app.
+            context: context,
+            builder: (buildContext) {
+              return AlertDialog(
+                title: Text(
+                  'Are you sure ?',
+                ),
+                content: Text(
+                  'Do you really want to remove "${cartItem.name}" from your cart ?',
+                ),
+                actions: <Widget>[
+                  FlatButton(
+                    child: Text(
+                      'Yes',
+                    ),
+                    onPressed: () {
+                      Navigator.of(context).pop(true); // upon button press, user intention is known, so, close the alert dialog
+                                                       // and return the decision value reflecting the button text.
+                    },
+                  ),
+                  FlatButton(
+                    child: Text(
+                      'No',
+                    ),
+                    onPressed: () {
+                      Navigator.of(context).pop(false); // upon button press, user intention is known, so, close the alert dialog
+                                                        // and return the decision value reflecting the button text.
+                    },
+                  ),
+                ],
+              );
+            });
+      },
       onDismissed: (_) {
         // Since we are only allowing one dismissible swipe direction, ignoring the direction input and no
         // other custom action would be necessary.

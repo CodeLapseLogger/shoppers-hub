@@ -24,6 +24,8 @@ class CartDetailScreen extends StatelessWidget {
         ),
       ),
       body: SingleChildScrollView(
+        //primary: true,
+        controller: ScrollController(),
         child: Column(
           children: <Widget>[
             Card(
@@ -81,22 +83,37 @@ class CartDetailScreen extends StatelessWidget {
             ),
             Divider(
               color: Colors.grey[400],
+              //height: MediaQuery.of(context).size.height * 0.05,
             ),
-            ListView.builder(
-              itemCount: cartDetails.cartItemCount,
-              itemBuilder: (builderContext, itemIdx) {
-                return CartItemWidget(
-                  cartItem: cartDetails.cartItems.values.toList()[itemIdx],
-                  cartItemProductId:
-                      cartDetails.cartItems.keys.toList()[itemIdx],
-                ); // All data needed for display
-                // will be taken out from the
-                // cartItem by CartItemWidget
-                // while building.
-              },
-              shrinkWrap: true,
-              controller: ScrollController(
-                initialScrollOffset: 1.5,
+            Container(
+              height:
+                  (MediaQuery.of(context).orientation == Orientation.landscape)
+                      ? 200
+                      : (MediaQuery.of(context).size.height -
+                          MediaQuery.of(context)
+                              .viewInsets
+                              .top) /* For Portrait Orientation: Total Height - Height of insets at the top (appBar) */,
+              child: ListView.builder(
+                // Can't really use Expanded with lists/grids as all available space will be taken up by them
+                // affecting the layout of other elements in terms of available space distribution on thw whole screen.
+                // Ok, to use with fixed number of elements, rather than dynamic item counts, like in the ListView.builder.
+                itemCount: cartDetails.cartItemCount,
+                itemBuilder: (builderContext, itemIdx) {
+                  return CartItemWidget(
+                    cartItem: cartDetails.cartItems.values.toList()[itemIdx],
+                    cartItemProductId:
+                        cartDetails.cartItems.keys.toList()[itemIdx],
+                  ); // All data needed for display
+                  // will be taken out from the
+                  // cartItem by CartItemWidget
+                  // while building.
+                },
+                shrinkWrap: true,
+                controller: ScrollController(
+                  initialScrollOffset: 1,
+                  keepScrollOffset: true,
+                ),
+                //itemExtent: 20,
               ),
             ),
           ],

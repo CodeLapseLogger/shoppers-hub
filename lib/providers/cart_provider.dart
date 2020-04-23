@@ -94,7 +94,7 @@ class CartProvider with ChangeNotifier {
     if (deletedItem == null) {
       print(
           "Error deleting item !\n itemKey: " + itemKey + "\nDetails below:\n");
-          
+
       _cartItems.removeWhere((currentItemKey, currentItemValue) {
         print("currentItemKey: " +
             currentItemKey +
@@ -114,14 +114,41 @@ class CartProvider with ChangeNotifier {
     }
   }
 
+  // Method to reduce the quantity of a product in cart by 1, and to delete the entire product from the cart in case
+  // its quantity would get to 0 after the reduction of its quantity.
+  CartItem reduceProductQuantityByOne(String productId) {
+    // Need to check the product's mapped cart item quantity for appropriate action. That is to just update or delete the whole entry.
+
+    CartItem itemAfterStateChange;
+
+    if (_cartItems['$productId'].quantity > 1) {
+
+      itemAfterStateChange = _cartItems.update(
+        productId,
+        (matchedCartItem) {
+          // Input argument is the CartItem instance that is the mapped value for the matching key (productId) in the map
+          return CartItem(
+            id: matchedCartItem.id,
+            name: matchedCartItem.name,
+            price: matchedCartItem.price,
+            quantity: matchedCartItem.quantity - 1,
+          );
+        },
+      );
+    }
+    else{ // Current product quantity is 1, so, reducing it to 0 essentially implies a non-existant cart item and hence the need for its deletion.
+      itemAfterStateChange = _cartItems.remove(productId);
+    }
+
+    notifyListeners(); // Notifies all listeners about the change in data state.
+    return itemAfterStateChange;
+
+  }
 
   // Method for listeners to clear all cart items
-  void clear(){
-
+  void clear() {
     _cartItems.clear(); // empties the map.
 
     notifyListeners();
   }
-
-
 }

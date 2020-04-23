@@ -7,7 +7,6 @@ import '../providers/products_provider.dart';
 import '../providers/product_provider.dart';
 
 class ProductGridWidget extends StatelessWidget {
-
   final bool filterFavorites;
 
   ProductGridWidget({
@@ -24,7 +23,7 @@ class ProductGridWidget extends StatelessWidget {
     //     .products; // Fetching product list from the data provider: ProductsProvider
 
     return Consumer<ProductsProvider>(
-      builder: (context, productsProvider, _) {
+      builder: (consumerContext, productsProvider, _) {
         // The Conusmer provides access to an instance of provider, through which further
         // calls or references to methods, attributes of the Provider class can be done
         // to retrieve data, like the list of products below using the "products" get method.
@@ -33,18 +32,16 @@ class ProductGridWidget extends StatelessWidget {
         // content like a label, using a Text widget.
 
         List<ProductProvider> productList;
-        
+
         // Additional check for data from parent widget ProductListingScreen, to know if user has chosen the favorites filter
         // or not. Accordingly, the appropriate list of products are being rendered from the provider: ProductsProvider, to be
         // displayed in a grid.
-        
-        if(filterFavorites){
+
+        if (filterFavorites) {
           productList = productsProvider.favoriteProducts;
-        }
-        else{
+        } else {
           productList = productsProvider.products;
         }
-        
 
         return GridView.builder(
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -72,7 +69,12 @@ class ProductGridWidget extends StatelessWidget {
                   ),
             );
           },
-          padding: EdgeInsets.all(10),
+          padding: EdgeInsets.only(
+            top: 10,
+            left: 10,
+            right: 10,
+            bottom: 50,
+          ),
         );
       },
     );

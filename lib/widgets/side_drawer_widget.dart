@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../screens/product_detail_screen.dart';
 import '../screens/orders_screen.dart';
+import '../screens/product_manager_screen.dart';
 
 class SideDrawerWidget extends StatelessWidget {
   @override
@@ -17,7 +17,8 @@ class SideDrawerWidget extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            automaticallyImplyLeading: false, // To avoid having the hamburger icon on the left when side drawer widget is built.
+            automaticallyImplyLeading:
+                false, // To avoid having the hamburger icon on the left when side drawer widget is built.
           ),
           Divider(),
           ListTile(
@@ -31,6 +32,7 @@ class SideDrawerWidget extends StatelessWidget {
               Navigator.of(context).pushReplacementNamed('/');
             },
           ),
+          Divider(),
           ListTile(
             leading: Icon(Icons.payment),
             title: Text('Orders',
@@ -43,6 +45,22 @@ class SideDrawerWidget extends StatelessWidget {
                   .pushReplacementNamed(OrdersScreen.routeName);
             },
           ),
+          Divider(),
+          ListTile(
+            leading: Icon(Icons.edit),
+            title: Text(
+              'Manage Products',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            onTap: () {
+              Navigator.of(context)
+                  .pushReplacementNamed(ProductManagerScreen.routeName);
+            },
+          ),
+          Divider(),
         ],
       ),
     );

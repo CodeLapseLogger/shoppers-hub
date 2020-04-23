@@ -60,7 +60,7 @@ class _OrderItemWidgetState extends State<OrderItemWidget> {
           if (isExpanded)
             Container(
               height: min(
-                  widget.orderData.orderedItems.length * 20.0 + 10.0, 180.0), // 20.0 is the estimated pixels for each item
+                  widget.orderData.orderedItems.length * 25.0 + 10.0, 180.0), // 20.0 is the estimated pixels for each item
                                                                               // + 10.0 for additional spacing. So, having an
                                                                               // estimate of things does help in formulating 
                                                                               // the UI layout and feel.
