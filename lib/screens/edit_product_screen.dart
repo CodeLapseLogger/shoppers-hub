@@ -85,11 +85,12 @@ class _EditProductScreenState extends State<EditProductScreen> {
               Provider.of<ProductsProvider>(context).getProductById(productId);
         }
 
-        _imageurlController.text = productDetails.imageUrl; // Setting the mapped Image Url form field's initial value, as 
-                                                            // form field can not have both initialValue and controller set at
-                                                            // the same time.
-                                                            // This is the ideal place as any changes to productDetails are done
-                                                            // at this point in code.
+        _imageurlController.text = productDetails
+            .imageUrl; // Setting the mapped Image Url form field's initial value, as
+        // form field can not have both initialValue and controller set at
+        // the same time.
+        // This is the ideal place as any changes to productDetails are done
+        // at this point in code.
       } // argument passed for edit operation
 
     }
@@ -136,23 +137,32 @@ class _EditProductScreenState extends State<EditProductScreen> {
 
   // Callback for form submission action
   void saveFormState() {
-    // Access form state through the GlobalKey that gives reference to the associated Form widget, and save it.
-    formStateRef.currentState.save();
+    // Access form state through the GlobalKey<FormState> instance and perform validations before saving it
+    final formInputIsClean = formStateRef.currentState
+        .validate(); // returns true if no issues with form input
 
-    // Listener set to false as screen will be popped after the respective operation.
-    if (productId.isEmpty) {
-      Provider.of<ProductsProvider>(context, listen: false).addProduct(
-          productDetails); // After state is saved to productDetails, add it to
-    } // providers product data.
-    else {
-      // productId.isNotEmpty, so, an edit/update operation
-      Provider.of<ProductsProvider>(context, listen: false)
-          .updateProduct(productId, productDetails);
-    }
+    if (formInputIsClean) { // Save form input and pop this screen only if the input passes validation checks.
+                            // Required validation for each form field is embedded in the textFormField instances
+                            // of the Form widget, as part of the "validator" attribute.
 
-    // Once the change is done, just pop this screen to get back to previous product listing screen in the Navigator
-    // stack and see the changes.
-    Navigator.of(context).pop();
+      // Access form state through the GlobalKey that gives reference to the associated Form widget, and save it.
+      formStateRef.currentState.save();
+
+      // Listener set to false as screen will be popped after the respective operation.
+      if (productId.isEmpty) {
+        Provider.of<ProductsProvider>(context, listen: false).addProduct(
+            productDetails); // After state is saved to productDetails, add it to
+      } // providers product data.
+      else {
+        // productId.isNotEmpty, so, an edit/update operation
+        Provider.of<ProductsProvider>(context, listen: false)
+            .updateProduct(productId, productDetails);
+      }
+
+      // Once the change is done, just pop this screen to get back to previous product listing screen in the Navigator
+      // stack and see the changes.
+      Navigator.of(context).pop();
+    } // end of if(formInputIsClean)
   }
 
   @override
@@ -212,6 +222,15 @@ class _EditProductScreenState extends State<EditProductScreen> {
                       .title, // Empty if it is an add operation and existing value for update operation,
                   // as values in productDetails object are set based on action prior to code
                   // reached in build method.
+                  validator: (fieldValue) {
+                    // Return value: null, means input passed the validation.
+                    // Return value: String, means error message being returned upon failure of input
+                    // validation.
+                    if (fieldValue.isEmpty)
+                      return 'Please enter a title'; // Error message to be displayed on screen prompting for user input.
+
+                    return null; // reaches here if input is non-empty. In other words, passed validation
+                  },
                   onSaved: (fieldValue) {
                     productDetails = ProductProvider(
                       // Except for the title extracted from this field, all other data is retained from the
@@ -241,9 +260,25 @@ class _EditProductScreenState extends State<EditProductScreen> {
                     focusNode:
                         _priceFocusNode, // Means to switch focus to this field from other fields in the form
                     textInputAction: TextInputAction.next,
-                    initialValue: (productId.isNotEmpty) ? productDetails.price
-                        .toString() : "", // need to convert double to string as form fields only deal
+                    initialValue: (productId.isNotEmpty)
+                        ? productDetails.price.toString()
+                        : "", // need to convert double to string as form fields only deal
                     // with strings.
+                    validator: (fieldValue) {
+                      if (fieldValue.isEmpty)
+                        return 'Please enter product price';
+                      else if (double.tryParse(fieldValue) ==
+                          null) // tryParse returns null if parse fails and doesn't throw
+                        // an error. So, it can be worked with during validation
+                        // to return an error message, enabling the app to resume
+                        // with corrected user input.
+                        return 'Please enter a number';
+                      else if (double.parse(fieldValue) <=
+                          0.0) // Input is number but still an invalid value <= 0
+                        return 'Price should be > 0';
+                      else // Past all validation checks, so, return null to signify error free user input
+                        return null;
+                    },
                     onSaved: (fieldValue) {
                       productDetails = ProductProvider(
                         // Except for the title extracted from this field, all other data is retained from the
@@ -273,6 +308,12 @@ class _EditProductScreenState extends State<EditProductScreen> {
                   maxLines: 5, // Set a limit on the content.
                   focusNode: _descriptionFocusNode,
                   initialValue: productDetails.description,
+                  validator: (fieldValue) {
+                    if (fieldValue.isEmpty) // Validation check
+                      return 'Please enter product description';
+
+                    return null; // Good user input
+                  },
                   onSaved: (fieldValue) {
                     productDetails = ProductProvider(
                       // Except for the title extracted from this field, all other data is retained from the
@@ -328,6 +369,15 @@ class _EditProductScreenState extends State<EditProductScreen> {
                           //initialValue: productDetails.imageUrl, // Can not have both controller and initialValue set at the
                           // same time. So, initial value for update operation has been
                           // set in the controller mapped to Image Url form field.
+                          validator: (fieldValue) {
+                            if (fieldValue.isEmpty)
+                              return 'Please enter image url';
+                            else if (!fieldValue.startsWith('http') &&
+                                !fieldValue.startsWith('https'))
+                              return 'Please enter a valid image url';
+                            else // Past validation checks
+                              return null; // user input is good.
+                          },
                           onSaved: (fieldValue) {
                             productDetails = ProductProvider(
                               // Except for the title extracted from this field, all other data is retained from the
