@@ -55,7 +55,8 @@ class ProductsProvider with ChangeNotifier {
 
 
 
-  void add() {
+  void addProduct(ProductProvider newProduct) {
+    _dummyProducts.add(newProduct);
     notifyListeners();
   }
 
@@ -81,4 +82,29 @@ class ProductsProvider with ChangeNotifier {
        return product.isFavorite; // test to know if the current product is a marked favorite or not.
     }).toList();
   }
+
+
+  // Update existing product
+  void updateProduct(String existingProdId, ProductProvider updatedProductItem){
+      
+      // Get the index of existing product with the given id.
+      int existingItemIdx = _dummyProducts.indexWhere((product){
+          return product.id == existingProdId;
+      });
+
+      // Replace the existing product entry at the given index with the updated product entry.
+      _dummyProducts.removeAt(existingItemIdx); // First remove
+      _dummyProducts.insert(existingItemIdx, updatedProductItem); // Then insert at the same index
+
+  }
+
+  // Method to remove a product with given id
+  void deleteProductById(String id){
+    _dummyProducts.removeWhere((product){
+        return product.id == id;
+    });
+
+    notifyListeners();
+  }
+
 }
