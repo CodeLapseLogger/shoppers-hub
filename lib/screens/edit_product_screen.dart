@@ -26,6 +26,9 @@ class _EditProductScreenState extends State<EditProductScreen> {
 
   bool isFirstBuild =
       true; // Flag to track if the screen is being built for the first time.
+  bool isScreenLoading =
+      false; // Flag to track the intermediate state when switching screens post the completion of a
+  // data operation like add/update.
   String productId =
       ""; // Stores the id of the product when this screen is built to update an existing product.
 
@@ -116,7 +119,9 @@ class _EditProductScreenState extends State<EditProductScreen> {
         //if (!_imageurlFocusNode.hasFocus) // out of focus
         imgPreviewRenderingWidget = FittedBox(
           child: Image.network(
-            _imageurlController.text,
+            _imageurlController.text
+                .trim(), // To avoid any trailing spaces being encoded in the url, which can lead to a
+            // 404 (page not found) http response .
           ),
           fit: BoxFit.cover,
         );
@@ -141,27 +146,120 @@ class _EditProductScreenState extends State<EditProductScreen> {
     final formInputIsClean = formStateRef.currentState
         .validate(); // returns true if no issues with form input
 
-    if (formInputIsClean) { // Save form input and pop this screen only if the input passes validation checks.
-                            // Required validation for each form field is embedded in the textFormField instances
-                            // of the Form widget, as part of the "validator" attribute.
+    if (formInputIsClean) {
+      // Save form input and pop this screen only if the input passes validation checks.
+      // Required validation for each form field is embedded in the textFormField instances
+      // of the Form widget, as part of the "validator" attribute.
 
       // Access form state through the GlobalKey that gives reference to the associated Form widget, and save it.
       formStateRef.currentState.save();
 
       // Listener set to false as screen will be popped after the respective operation.
       if (productId.isEmpty) {
-        Provider.of<ProductsProvider>(context, listen: false).addProduct(
-            productDetails); // After state is saved to productDetails, add it to
+        // Re-build widget to reflect the UI transition during the data operation
+        setState(() {
+          // Set screen loading flag to true, as either the add/update operation would be performed next
+          isScreenLoading = true;
+        });
+
+        Provider.of<ProductsProvider>(context, listen: false)
+            .addProduct(productDetails)
+            .catchError(
+          (error) {
+            return showDialog(
+              // Seems, the explicit mention of the void type is necessary to ensure the right Future
+              // type is returned by showDialog in sycn with the return type of catchError, for the chained
+              // then() to work as intended in resetting the screen loading flag and popping this
+              // screen after the add operation, irrespective of the outcome (success/failure).
+              context: context,
+              builder: (buildContext) {
+                // As catchError() should return a Future, the
+                // return statement with showDialog fills that
+                // condition, as showDialog also returns a Future.
+
+                return AlertDialog(
+                  title: Row(
+                    children: <Widget>[
+                      Icon(
+                        Icons.error,
+                        color: Theme.of(context).errorColor,
+                      ),
+                      SizedBox(
+                        width: 5,
+                      ),
+                      Text('ERROR',
+                          style: TextStyle(
+                            color: Theme.of(context).errorColor,
+                            fontWeight: FontWeight.bold,
+                          )),
+                    ],
+                  ),
+                  content: Text(
+                    'New product couldn\'t be added !',
+                  ),
+                  actions: <Widget>[
+                    RaisedButton(
+                        child: Text(
+                          'OK',
+                          style: TextStyle(
+                            color: Colors.blueAccent,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.of(buildContext)
+                              .pop(); // pop the AlertDialog off the top of app Navigator stack. Notice that the
+                          // context given to Navigator is buildContext, which is different than the
+                          // Stateful widget's "context".
+                        }),
+                  ],
+                );
+              },
+            );
+          },
+        ).then(
+          (_) {
+            // Eventhough the Future returned by addProduct wraps a void as value, still a value is returned to then
+            // which should be captured and can be ignored with the '_'.
+
+            // Re-build widget again to signify end of data operation, allowing the screen to be popped, taking it to prior
+            // screen in the Navigator stack.
+            setState(() {
+              // Unset the screen loading flag as the operation is now complete
+              isScreenLoading = false;
+            });
+
+            // Once the change is done, just pop this screen to get back to previous product listing screen in the Navigator
+            // stack and see the changes. Since we want the screen to be popped only after the add operation is complete, it has
+            // been put inside the then() method, which is queued for execution right behind addProduct(). Irrespective of whether
+            // there was an error or not during the add operation, this screen is popped, allowing the app to recover from the
+            // failed operation.
+            Navigator.of(context).pop();
+          },
+        ); // After state is saved to productDetails, add it to
       } // providers product data.
       else {
+        // Re-build widget to reflect the UI transition during the data operation
+        setState(() {
+          // Set screen loading flag to true, as either the add/update operation would be performed next
+          isScreenLoading = true;
+        });
+
         // productId.isNotEmpty, so, an edit/update operation
         Provider.of<ProductsProvider>(context, listen: false)
             .updateProduct(productId, productDetails);
-      }
 
-      // Once the change is done, just pop this screen to get back to previous product listing screen in the Navigator
-      // stack and see the changes.
-      Navigator.of(context).pop();
+        // Re-build widget again to signify end of data operation, allowing the screen to be popped, taking it to prior
+        // screen in the Navigator stack.
+        setState(() {
+          // Unset the screen loading flag as the operation is now complete
+          isScreenLoading = false;
+        });
+
+        Navigator.of(context)
+            .pop(); // To remove this screen from the user's app view and get back to the previous
+        // ProductManagerScreen.
+      }
     } // end of if(formInputIsClean)
   }
 
@@ -190,193 +288,101 @@ class _EditProductScreenState extends State<EditProductScreen> {
           ),
         ],
       ),
-      body: Form(
-        key:
-            formStateRef, // This connects the form to the GlobalKey that can reference the associated form state here.
-        child: SingleChildScrollView(
-          // Helps with the column layout by making it scrollable on the screen and accomodate
-          // widgets being brought on to screen from the bottom when it's content is scrolled.
-          child: Container(
-            padding:
-                (MediaQuery.of(context).orientation == Orientation.landscape)
-                    ? EdgeInsets.only(
-                        top: 10,
-                        right: 10,
-                        left: 10,
-                        bottom: MediaQuery.of(context).viewInsets.bottom +
-                            15, // For pushing the form fields up by 15px, when
-                        // the keyboard kicks in from the bottom of the
-                        // device screen.
-                      )
-                    : EdgeInsets.all(10), // Orientation == landscape
-            child: Column(
-              children: <Widget>[
-                TextFormField(
-                  decoration: InputDecoration(
-                    labelText: 'Title',
-                  ),
-                  keyboardType: TextInputType.text,
-                  //autofocus: true,
-                  textInputAction: TextInputAction.next,
-                  initialValue: productDetails
-                      .title, // Empty if it is an add operation and existing value for update operation,
-                  // as values in productDetails object are set based on action prior to code
-                  // reached in build method.
-                  validator: (fieldValue) {
-                    // Return value: null, means input passed the validation.
-                    // Return value: String, means error message being returned upon failure of input
-                    // validation.
-                    if (fieldValue.isEmpty)
-                      return 'Please enter a title'; // Error message to be displayed on screen prompting for user input.
-
-                    return null; // reaches here if input is non-empty. In other words, passed validation
-                  },
-                  onSaved: (fieldValue) {
-                    productDetails = ProductProvider(
-                      // Except for the title extracted from this field, all other data is retained from the
-                      // existing product data.
-                      id: productDetails.id,
-                      title: fieldValue,
-                      description: productDetails.description,
-                      price: productDetails.price,
-                      imageUrl: productDetails.imageUrl,
-                      isFavorite: productDetails.isFavorite,
-                    );
-                  },
-                  onFieldSubmitted: (_) {
-                    // Field content returned as value is not required here and hence ignored with "_".
-                    FocusScope.of(context).requestFocus(
-                        _priceFocusNode); // Swicth focus to the immediate Price field on field
-                    // submission.
-                  },
-                ),
-                TextFormField(
-                    decoration: InputDecoration(
-                      labelText: 'Price',
-                    ),
-                    keyboardType: TextInputType.numberWithOptions(
-                      decimal: true,
-                    ), // As price is typically a decimal value
-                    focusNode:
-                        _priceFocusNode, // Means to switch focus to this field from other fields in the form
-                    textInputAction: TextInputAction.next,
-                    initialValue: (productId.isNotEmpty)
-                        ? productDetails.price.toString()
-                        : "", // need to convert double to string as form fields only deal
-                    // with strings.
-                    validator: (fieldValue) {
-                      if (fieldValue.isEmpty)
-                        return 'Please enter product price';
-                      else if (double.tryParse(fieldValue) ==
-                          null) // tryParse returns null if parse fails and doesn't throw
-                        // an error. So, it can be worked with during validation
-                        // to return an error message, enabling the app to resume
-                        // with corrected user input.
-                        return 'Please enter a number';
-                      else if (double.parse(fieldValue) <=
-                          0.0) // Input is number but still an invalid value <= 0
-                        return 'Price should be > 0';
-                      else // Past all validation checks, so, return null to signify error free user input
-                        return null;
-                    },
-                    onSaved: (fieldValue) {
-                      productDetails = ProductProvider(
-                        // Except for the title extracted from this field, all other data is retained from the
-                        // existing product data.
-                        id: productDetails.id,
-                        title: productDetails.title,
-                        description: productDetails.description,
-                        price: double.parse(
-                            fieldValue), // fieldValue retrieved as string by default is converted to double (type for price).
-                        imageUrl: productDetails.imageUrl,
-                        isFavorite: productDetails.isFavorite,
-                      );
-                    },
-                    onFieldSubmitted: (_) {
-                      // Ignore the field content returned as value
-                      //FocusScope.of(context).unfocus();
-                      FocusScope.of(context).requestFocus(
-                          _descriptionFocusNode); // Swicth focus to the immediate Description field
-                    }),
-                TextFormField(
-                  decoration: InputDecoration(
-                    labelText: 'Description',
-                  ),
-                  keyboardType: TextInputType
-                      .multiline, // As description can span more than one line.
-                  minLines: 3, // Set a minimum number of lines to start with
-                  maxLines: 5, // Set a limit on the content.
-                  focusNode: _descriptionFocusNode,
-                  initialValue: productDetails.description,
-                  validator: (fieldValue) {
-                    if (fieldValue.isEmpty) // Validation check
-                      return 'Please enter product description';
-
-                    return null; // Good user input
-                  },
-                  onSaved: (fieldValue) {
-                    productDetails = ProductProvider(
-                      // Except for the title extracted from this field, all other data is retained from the
-                      // existing product data.
-                      id: productDetails.id,
-                      title: productDetails.title,
-                      description: fieldValue,
-                      price: productDetails.price,
-                      imageUrl: productDetails.imageUrl,
-                      isFavorite: productDetails.isFavorite,
-                    );
-                  },
-                ),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment
-                      .end, // To have child widgets positioned vertically at the bottom,
-                  // giving it a uniform form layout.
-                  children: <Widget>[
-                    // Child widgets have been wrapped in Expanded widget to ensure they take minimum possible
-                    // space in the layout than the default maximum possible space, the norm for Row widget.
-                    // Or else, flutter will not be able to figure out the layout of widgets on the screen.
-                    Container(
-                      // To render image preview of the imageUrl given as input in the sibling TextFormField in the row
-                      height: 100,
-                      width: 100,
-                      margin: EdgeInsets.only(
-                        top: 10,
-                        right: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: Colors.grey,
-                          width: 2,
+      body: isScreenLoading // To account for the intermediate state when carrying out the add/update operation and reflect
+          // that in the UI with CircularProgressIndicator(), which can improve user experience as it conveys
+          // the start, progress and end of the add/update operation triggered by the user.
+          ? Center(
+              child: CircularProgressIndicator(),
+            )
+          : Form(
+              key:
+                  formStateRef, // This connects the form to the GlobalKey that can reference the associated form state here.
+              child: SingleChildScrollView(
+                // Helps with the column layout by making it scrollable on the screen and accomodate
+                // widgets being brought on to screen from the bottom when it's content is scrolled.
+                child: Container(
+                  padding: (MediaQuery.of(context).orientation ==
+                          Orientation.landscape)
+                      ? EdgeInsets.only(
+                          top: 10,
+                          right: 10,
+                          left: 10,
+                          bottom: MediaQuery.of(context).viewInsets.bottom +
+                              15, // For pushing the form fields up by 15px, when
+                          // the keyboard kicks in from the bottom of the
+                          // device screen.
+                        )
+                      : EdgeInsets.all(10), // Orientation == landscape
+                  alignment: Alignment.center,
+                  child: Column(
+                    children: <Widget>[
+                      TextFormField(
+                        decoration: InputDecoration(
+                          labelText: 'Title',
                         ),
-                      ),
-                      child: imgPreviewRenderingWidget,
-                    ),
-                    Expanded(
-                      flex:
-                          2, // This attribute gives more of the available space to the child widget, compared to the other
-                      // child with flex set to default value: 1.
+                        keyboardType: TextInputType.text,
+                        //autofocus: true,
+                        textInputAction: TextInputAction.next,
+                        initialValue: productDetails
+                            .title, // Empty if it is an add operation and existing value for update operation,
+                        // as values in productDetails object are set based on action prior to code
+                        // reached in build method.
+                        validator: (fieldValue) {
+                          // Return value: null, means input passed the validation.
+                          // Return value: String, means error message being returned upon failure of input
+                          // validation.
+                          if (fieldValue.isEmpty)
+                            return 'Please enter a title'; // Error message to be displayed on screen prompting for user input.
 
-                      child: TextFormField(
+                          return null; // reaches here if input is non-empty. In other words, passed validation
+                        },
+                        onSaved: (fieldValue) {
+                          productDetails = ProductProvider(
+                            // Except for the title extracted from this field, all other data is retained from the
+                            // existing product data.
+                            id: productDetails.id,
+                            title: fieldValue,
+                            description: productDetails.description,
+                            price: productDetails.price,
+                            imageUrl: productDetails.imageUrl,
+                            isFavorite: productDetails.isFavorite,
+                          );
+                        },
+                        onFieldSubmitted: (_) {
+                          // Field content returned as value is not required here and hence ignored with "_".
+                          FocusScope.of(context).requestFocus(
+                              _priceFocusNode); // Swicth focus to the immediate Price field on field
+                          // submission.
+                        },
+                      ),
+                      TextFormField(
                           decoration: InputDecoration(
-                            labelText: 'Image Url',
+                            labelText: 'Price',
                           ),
-                          keyboardType: TextInputType
-                              .url, // As the input would be an image url
-                          textInputAction: TextInputAction
-                              .done, // Set to done being the last field in the form and submit
-                          // when content is filled and submitted.
-                          controller: _imageurlController,
-                          //initialValue: productDetails.imageUrl, // Can not have both controller and initialValue set at the
-                          // same time. So, initial value for update operation has been
-                          // set in the controller mapped to Image Url form field.
+                          keyboardType: TextInputType.numberWithOptions(
+                            decimal: true,
+                          ), // As price is typically a decimal value
+                          focusNode:
+                              _priceFocusNode, // Means to switch focus to this field from other fields in the form
+                          textInputAction: TextInputAction.next,
+                          initialValue: (productId.isNotEmpty)
+                              ? productDetails.price.toString()
+                              : "", // need to convert double to string as form fields only deal
+                          // with strings.
                           validator: (fieldValue) {
                             if (fieldValue.isEmpty)
-                              return 'Please enter image url';
-                            else if (!fieldValue.startsWith('http') &&
-                                !fieldValue.startsWith('https'))
-                              return 'Please enter a valid image url';
-                            else // Past validation checks
-                              return null; // user input is good.
+                              return 'Please enter product price';
+                            else if (double.tryParse(fieldValue) ==
+                                null) // tryParse returns null if parse fails and doesn't throw
+                              // an error. So, it can be worked with during validation
+                              // to return an error message, enabling the app to resume
+                              // with corrected user input.
+                              return 'Please enter a number';
+                            else if (double.parse(fieldValue) <=
+                                0.0) // Input is number but still an invalid value <= 0
+                              return 'Price should be > 0';
+                            else // Past all validation checks, so, return null to signify error free user input
+                              return null;
                           },
                           onSaved: (fieldValue) {
                             productDetails = ProductProvider(
@@ -385,22 +391,126 @@ class _EditProductScreenState extends State<EditProductScreen> {
                               id: productDetails.id,
                               title: productDetails.title,
                               description: productDetails.description,
-                              price: productDetails.price,
-                              imageUrl: fieldValue,
+                              price: double.parse(
+                                  fieldValue), // fieldValue retrieved as string by default is converted to double (type for price).
+                              imageUrl: productDetails.imageUrl,
                               isFavorite: productDetails.isFavorite,
                             );
                           },
                           onFieldSubmitted: (_) {
-                            saveFormState();
+                            // Ignore the field content returned as value
+                            //FocusScope.of(context).unfocus();
+                            FocusScope.of(context).requestFocus(
+                                _descriptionFocusNode); // Swicth focus to the immediate Description field
                           }),
-                    ),
-                  ],
+                      TextFormField(
+                        decoration: InputDecoration(
+                          labelText: 'Description',
+                        ),
+                        keyboardType: TextInputType
+                            .multiline, // As description can span more than one line.
+                        minLines:
+                            3, // Set a minimum number of lines to start with
+                        maxLines: 5, // Set a limit on the content.
+                        focusNode: _descriptionFocusNode,
+                        initialValue: productDetails.description,
+                        validator: (fieldValue) {
+                          if (fieldValue.isEmpty) // Validation check
+                            return 'Please enter product description';
+
+                          return null; // Good user input
+                        },
+                        onSaved: (fieldValue) {
+                          productDetails = ProductProvider(
+                            // Except for the title extracted from this field, all other data is retained from the
+                            // existing product data.
+                            id: productDetails.id,
+                            title: productDetails.title,
+                            description: fieldValue,
+                            price: productDetails.price,
+                            imageUrl: productDetails.imageUrl,
+                            isFavorite: productDetails.isFavorite,
+                          );
+                        },
+                      ),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment
+                            .end, // To have child widgets positioned vertically at the bottom,
+                        // giving it a uniform form layout.
+                        children: <Widget>[
+                          // Child widgets have been wrapped in Expanded widget to ensure they take minimum possible
+                          // space in the layout than the default maximum possible space, the norm for Row widget.
+                          // Or else, flutter will not be able to figure out the layout of widgets on the screen.
+                          Container(
+                            // To render image preview of the imageUrl given as input in the sibling TextFormField in the row
+                            height: 100,
+                            width: 100,
+                            margin: EdgeInsets.only(
+                              top: 10,
+                              right: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: Colors.grey,
+                                width: 2,
+                              ),
+                            ),
+                            child: imgPreviewRenderingWidget,
+                          ),
+                          Expanded(
+                            flex:
+                                2, // This attribute gives more of the available space to the child widget, compared to the other
+                            // child with flex set to default value: 1.
+
+                            child: TextFormField(
+                                decoration: InputDecoration(
+                                  labelText: 'Image Url',
+                                ),
+                                keyboardType: TextInputType
+                                    .url, // As the input would be an image url
+                                textInputAction: TextInputAction
+                                    .done, // Set to done being the last field in the form and submit
+                                // when content is filled and submitted.
+                                controller: _imageurlController,
+                                //initialValue: productDetails.imageUrl, // Can not have both controller and initialValue set at the
+                                // same time. So, initial value for update operation has been
+                                // set in the controller mapped to Image Url form field.
+                                validator: (fieldValue) {
+                                  if (fieldValue.isEmpty)
+                                    return 'Please enter image url';
+                                  else if (!fieldValue.startsWith('http') &&
+                                      !fieldValue.startsWith('https'))
+                                    return 'Please enter a valid image url';
+                                  else // Past validation checks
+                                    return null; // user input is good.
+                                },
+                                onSaved: (fieldValue) {
+                                  productDetails = ProductProvider(
+                                    // Except for the title extracted from this field, all other data is retained from the
+                                    // existing product data.
+                                    id: productDetails.id,
+                                    title: productDetails.title,
+                                    description: productDetails.description,
+                                    price: productDetails.price,
+                                    imageUrl: fieldValue
+                                        .trim(), // To ensure a clean url string is saved avoiding any trouble
+                                    // in rendering the image preview, in the box to the left of this
+                                    // field. Any trailing spaces will be will be encoded in the url as
+                                    // %20, leading to 404 (page not found) http response.
+                                    isFavorite: productDetails.isFavorite,
+                                  );
+                                },
+                                onFieldSubmitted: (_) {
+                                  saveFormState();
+                                }),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ],
+              ),
             ),
-          ),
-        ),
-      ),
     );
   }
 }

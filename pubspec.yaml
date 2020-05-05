@@ -32,6 +32,10 @@ dependencies:
   # date/time strings.
   intl: ^0.16.1
 
+  # The following dart package adds capability to make http requests
+  # from the app to external/local servers.
+  http: ^0.12.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

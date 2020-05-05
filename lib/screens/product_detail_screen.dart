@@ -62,33 +62,45 @@ class ProductDetailScreen extends StatelessWidget {
           prodItem.title,
         ),
       ),
-      body: Container(
-        alignment: Alignment.center,
+      body: SingleChildScrollView(
         child: Column(
           children: <Widget>[
             Image.network(
               prodItem.imageUrl,
-              fit: BoxFit.fitWidth,
-              height: (MediaQuery.of(context).size.height -
-                      MediaQuery.of(context).viewInsets.top) *
-                  0.75,
-              width: double.infinity,
+              fit: BoxFit.contain,
+              height: MediaQuery.of(context).size.height * 0.72,
+              width: MediaQuery.of(context).size.width,
             ),
             SizedBox(
-              height: 20,
+              height: MediaQuery.of(context).size.height * 0.05,
             ),
-            Text(
-              '\$${prodItem.price}',
-              style: TextStyle(
-                fontSize: 20,
-                color: Theme.of(context).accentColor,
+            Container(
+              // height: (MediaQuery.of(context).size.height -
+              //         MediaQuery.of(context).viewInsets.top) *
+              //     0.05,
+              child: Text(
+                '\$${prodItem.price}',
+                style: TextStyle(
+                  fontSize: 20,
+                  color: Theme.of(context).accentColor,
+                ),
               ),
             ),
-            Text(
-              prodItem.description,
-              style: TextStyle(
-                fontSize: 15,
-                color: Colors.grey,
+            Container(
+              height: MediaQuery.of(context).size.height * 0.07,
+              padding: const EdgeInsets.only(
+                top: 2.0,
+                left: 5.0,
+                right: 5.0,
+              ),
+              child: Text(
+                prodItem.description,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Colors.grey,
+                ),
+                textAlign: TextAlign.center,
+                softWrap: true,
               ),
             ),
           ],
