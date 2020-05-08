@@ -26,11 +26,22 @@ class _EditProductScreenState extends State<EditProductScreen> {
 
   bool isFirstBuild =
       true; // Flag to track if the screen is being built for the first time.
+
   bool isScreenLoading =
       false; // Flag to track the intermediate state when switching screens post the completion of a
   // data operation like add/update.
+
   String productId =
       ""; // Stores the id of the product when this screen is built to update an existing product.
+
+  ProductProvider productDetails = ProductProvider(
+    id: "", // Would be overwritten with id from new db entry
+    title: "",
+    price: 0,
+    description: "",
+    imageUrl: "",
+  ); // Product object with default values for add operation. Will be overwritten for update operation in
+  // build method.
 
   Widget
       imgPreviewRenderingWidget; // Widget to render image preview based on the content of image url.
@@ -38,15 +49,6 @@ class _EditProductScreenState extends State<EditProductScreen> {
   final formStateRef = GlobalKey<
       FormState>(); // Global key that can reference a Form widget state. Will be the one to
   // track state of the Form widget on this screen.
-
-  ProductProvider productDetails = ProductProvider(
-    id: DateTime.now().toString(),
-    title: "",
-    price: 0,
-    description: "",
-    imageUrl: "",
-  ); // Product object with default values for add operation. Will be overwritten for update operation in
-  // build method.
 
   final _imageurlController =
       TextEditingController(); // Used to access content entered in the image url field, which will be
@@ -60,6 +62,225 @@ class _EditProductScreenState extends State<EditProductScreen> {
     // Being set when the widget state is being initialized to track all
     // changes thereafter.
     super.initState();
+  }
+
+  // Callback to listener set in the initState method to rebuild the impage preview box based on the content and focus of the
+  // image url form field. Being setup explicitly through controller and listener.
+  //
+  // ALTERNATIVE APPROACH: Setup a focusNode for the image url field and also a listener in the initState() method, to listen
+  // for it to go out of focus (when another field on the form is selected by user) and have a callback which just has an empty
+  // setState() method to rebuild after the url has been entered in the field, which can then be previewed with the re-build.
+  void _renderImagePreview() {
+    setState(() {
+      if (_imageurlController.text.isEmpty) {
+        imgPreviewRenderingWidget = Text(
+          'Enter image url',
+        );
+      } else {
+        //if (!_imageurlFocusNode.hasFocus) // out of focus
+        imgPreviewRenderingWidget = FittedBox(
+          child: Image.network(
+            _imageurlController.text
+                .trim(), // To avoid any trailing spaces being encoded in the url, which can lead to a
+            // 404 (page not found) http response .
+          ),
+          fit: BoxFit.cover,
+        );
+      }
+    });
+  }
+
+  // Callback for form submission action
+  Future<void> saveFormState() async {
+    // Access form state through the GlobalKey<FormState> instance and perform validations before saving it
+    final formInputIsClean = formStateRef.currentState
+        .validate(); // returns true if no issues with form input
+
+    
+    if (formInputIsClean) {
+      // Save form input and pop this screen only if the input passes validation checks.
+      // Required validation for each form field is embedded in the textFormField instances
+      // of the Form widget, as part of the "validator" attribute.
+
+      // Access form state through the GlobalKey that gives reference to the associated Form widget, and save it.
+      formStateRef.currentState.save();
+
+      // Data to be returned to prior screen on the Navigator stack, for displaying success message through SnackBar at the
+      // bottom. Any error is being handled here with an AlertDialog. So, I believe conveying failure message on the prior
+      // screen (when this screen is popped) would be redundant and act as a deterrent to user experience. Not redundant for
+      // success though, as only a circular progress loader is diplayed before this screen pops.
+      String successMessage = "";
+
+      // Listener set to false as screen will be popped after the respective operation.
+      if (productId.isEmpty) {
+        // Re-build widget to reflect the UI transition during the data operation
+        setState(() {
+          // Set screen loading flag to true, as either the add/update operation would be performed next
+          isScreenLoading = true;
+        });
+
+        // With async/await, error handling done with try/catch/finally block
+        // The methods returning Future types, in other words, actions/operations that need the execution to be done synchronously
+        // when qualified by "await" keyword, implicitly return the value of Future. Don't explicitly need the return statement
+        // like in the case of then(), catchError() methods used to handle part of code that deal with Futures.
+        try {
+          await Provider.of<ProductsProvider>(context, listen: false)
+              .addProduct(productDetails);
+
+          successMessage = "Add was successful !";
+        } catch (error) {
+          await showDialog(
+            context: context,
+            builder: (buildContext) {
+              return AlertDialog(
+                title: Row(
+                  children: <Widget>[
+                    Icon(
+                      Icons.error,
+                      color: Theme.of(context).errorColor,
+                    ),
+                    SizedBox(
+                      width: 5,
+                    ),
+                    Text('ERROR',
+                        style: TextStyle(
+                          color: Theme.of(context).errorColor,
+                          fontWeight: FontWeight.bold,
+                        )),
+                  ],
+                ),
+                content: Text(
+                  'New product couldn\'t be added !',
+                  // style: TextStyle(
+                  //   fontWeight: FontWeight.bold,
+                  // ),
+                ),
+                actions: <Widget>[
+                  RaisedButton(
+                      child: Text(
+                        'OK',
+                        style: TextStyle(
+                          color: Colors.blueAccent,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      onPressed: () {
+                        Navigator.of(buildContext)
+                            .pop(); // pop the AlertDialog off the top of app Navigator stack. Notice that the
+                        // context given to Navigator is buildContext, which is different than the
+                        // Stateful widget's "context".
+                      }),
+                ],
+              );
+            },
+          );
+        } // end of catch-block
+         finally {
+          // Irrespective of whether there was an error or not during the add operation, this screen is popped, allowing the
+          // app to recover from the failed operation. So, it has been put in the "finally" block which executes in either
+          // case (successful/failed operation).
+
+          // Re-build widget again to signify end of data operation, allowing the screen to be popped, taking it to prior
+          // screen in the Navigator stack.
+          setState(() {
+            // Unset the screen loading flag as the operation is now complete
+            isScreenLoading = false;
+          });
+
+          // Pop this screen
+          Navigator.of(context).pop({
+            'successMessage': successMessage,
+          });
+        }
+      } else {
+        // Update
+
+        // Re-build widget to reflect the UI transition during the data operation
+        setState(() {
+          // Set screen loading flag to true, as either the add/update operation would be performed next
+          isScreenLoading = true;
+        });
+
+        try {
+          // productId.isNotEmpty, so, an edit/update operation
+          await Provider.of<ProductsProvider>(context, listen: false)
+              .updateProduct(productId,
+                  productDetails); // Wait until the update operation is done
+
+          successMessage = "Update was successful !";
+
+        } catch (error) {
+          await showDialog(
+            context: context,
+            builder: (buildContext) {
+              return AlertDialog(
+                title: Row(
+                  children: <Widget>[
+                    Icon(
+                      Icons.error,
+                      color: Theme.of(context).errorColor,
+                    ),
+                    SizedBox(
+                      width: 5,
+                    ),
+                    Text('ERROR',
+                        style: TextStyle(
+                          color: Theme.of(context).errorColor,
+                          fontWeight: FontWeight.bold,
+                        )),
+                  ],
+                ),
+                content: Text(
+                  'Chosen product couldn\'t be updated !',
+                  // style: TextStyle(
+                  //   fontWeight: FontWeight.bold,
+                  // ),
+                ),
+                actions: <Widget>[
+                  RaisedButton(
+                      child: Text(
+                        'OK',
+                        style: TextStyle(
+                          color: Colors.blueAccent,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      onPressed: () {
+                        Navigator.of(buildContext)
+                            .pop(); // pop the AlertDialog off the top of app Navigator stack. Notice that the
+                        // context given to Navigator is buildContext, which is different than the
+                        // Stateful widget's "context".
+                      }),
+                ],
+              );
+            },
+          );
+        } finally {
+          // Re-build widget again to signify end of data operation, allowing the screen to be popped, taking it to prior
+          // screen in the Navigator stack.
+          setState(() {
+            // Unset the screen loading flag as the operation is now complete
+            isScreenLoading = false;
+          });
+
+          Navigator.of(context).pop({
+            'successMessage': successMessage,
+          }); // To remove this screen from the user's app view and get back to the previous
+          // ProductManagerScreen.
+        }
+      }
+    } // end of if(formInputIsClean)
+  }
+
+  @override
+  void dispose() {
+    // Cleanup state of focusNode, controller objects when this screen is popped off the Navigator stack
+    _imageurlController.removeListener(_renderImagePreview);
+    _priceFocusNode.dispose();
+    _descriptionFocusNode.dispose();
+    //_imageurlFocusNode.dispose();
+    _imageurlController.dispose();
+    super.dispose();
   }
 
   @override
@@ -86,14 +307,14 @@ class _EditProductScreenState extends State<EditProductScreen> {
           // Means this screen has been built to perform the edit operation on an existing product
           productDetails =
               Provider.of<ProductsProvider>(context).getProductById(productId);
-        }
 
-        _imageurlController.text = productDetails
-            .imageUrl; // Setting the mapped Image Url form field's initial value, as
-        // form field can not have both initialValue and controller set at
-        // the same time.
-        // This is the ideal place as any changes to productDetails are done
-        // at this point in code.
+          _imageurlController.text = productDetails
+              .imageUrl; // Setting the mapped Image Url form field's initial value, as
+          // form field can not have both initialValue and controller set at
+          // the same time.
+          // This is the ideal place as any changes to productDetails are done
+          // at this point in code.
+        }
       } // argument passed for edit operation
 
     }
@@ -101,166 +322,6 @@ class _EditProductScreenState extends State<EditProductScreen> {
     isFirstBuild = false; // set to false after the first build
 
     super.didChangeDependencies();
-  }
-
-  // Callback to listener set in the initState method to rebuild the impage preview box based on the content and focus of the
-  // image url form field. Being setup explicitly through controller and listener.
-  //
-  // ALTERNATIVE APPROACH: Setup a focusNode for the image url field and also a listener in the initState() method, to listen
-  // for it to go out of focus (when another field on the form is selected by user) and have a callback which just has an empty
-  // setState() method to rebuild after the url has been entered in the field, which can the be previewed with the re-build.
-  void _renderImagePreview() {
-    setState(() {
-      if (_imageurlController.text.isEmpty) {
-        imgPreviewRenderingWidget = Text(
-          'Enter image url',
-        );
-      } else {
-        //if (!_imageurlFocusNode.hasFocus) // out of focus
-        imgPreviewRenderingWidget = FittedBox(
-          child: Image.network(
-            _imageurlController.text
-                .trim(), // To avoid any trailing spaces being encoded in the url, which can lead to a
-            // 404 (page not found) http response .
-          ),
-          fit: BoxFit.cover,
-        );
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    // Cleanup state of focusNode, controller objects when this screen is popped off the Navigator stack
-    _imageurlController.removeListener(_renderImagePreview);
-    _priceFocusNode.dispose();
-    _descriptionFocusNode.dispose();
-    //_imageurlFocusNode.dispose();
-    _imageurlController.dispose();
-    super.dispose();
-  }
-
-  // Callback for form submission action
-  void saveFormState() {
-    // Access form state through the GlobalKey<FormState> instance and perform validations before saving it
-    final formInputIsClean = formStateRef.currentState
-        .validate(); // returns true if no issues with form input
-
-    if (formInputIsClean) {
-      // Save form input and pop this screen only if the input passes validation checks.
-      // Required validation for each form field is embedded in the textFormField instances
-      // of the Form widget, as part of the "validator" attribute.
-
-      // Access form state through the GlobalKey that gives reference to the associated Form widget, and save it.
-      formStateRef.currentState.save();
-
-      // Listener set to false as screen will be popped after the respective operation.
-      if (productId.isEmpty) {
-        // Re-build widget to reflect the UI transition during the data operation
-        setState(() {
-          // Set screen loading flag to true, as either the add/update operation would be performed next
-          isScreenLoading = true;
-        });
-
-        Provider.of<ProductsProvider>(context, listen: false)
-            .addProduct(productDetails)
-            .catchError(
-          (error) {
-            return showDialog(
-              // Seems, the explicit mention of the void type is necessary to ensure the right Future
-              // type is returned by showDialog in sycn with the return type of catchError, for the chained
-              // then() to work as intended in resetting the screen loading flag and popping this
-              // screen after the add operation, irrespective of the outcome (success/failure).
-              context: context,
-              builder: (buildContext) {
-                // As catchError() should return a Future, the
-                // return statement with showDialog fills that
-                // condition, as showDialog also returns a Future.
-
-                return AlertDialog(
-                  title: Row(
-                    children: <Widget>[
-                      Icon(
-                        Icons.error,
-                        color: Theme.of(context).errorColor,
-                      ),
-                      SizedBox(
-                        width: 5,
-                      ),
-                      Text('ERROR',
-                          style: TextStyle(
-                            color: Theme.of(context).errorColor,
-                            fontWeight: FontWeight.bold,
-                          )),
-                    ],
-                  ),
-                  content: Text(
-                    'New product couldn\'t be added !',
-                  ),
-                  actions: <Widget>[
-                    RaisedButton(
-                        child: Text(
-                          'OK',
-                          style: TextStyle(
-                            color: Colors.blueAccent,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        onPressed: () {
-                          Navigator.of(buildContext)
-                              .pop(); // pop the AlertDialog off the top of app Navigator stack. Notice that the
-                          // context given to Navigator is buildContext, which is different than the
-                          // Stateful widget's "context".
-                        }),
-                  ],
-                );
-              },
-            );
-          },
-        ).then(
-          (_) {
-            // Eventhough the Future returned by addProduct wraps a void as value, still a value is returned to then
-            // which should be captured and can be ignored with the '_'.
-
-            // Re-build widget again to signify end of data operation, allowing the screen to be popped, taking it to prior
-            // screen in the Navigator stack.
-            setState(() {
-              // Unset the screen loading flag as the operation is now complete
-              isScreenLoading = false;
-            });
-
-            // Once the change is done, just pop this screen to get back to previous product listing screen in the Navigator
-            // stack and see the changes. Since we want the screen to be popped only after the add operation is complete, it has
-            // been put inside the then() method, which is queued for execution right behind addProduct(). Irrespective of whether
-            // there was an error or not during the add operation, this screen is popped, allowing the app to recover from the
-            // failed operation.
-            Navigator.of(context).pop();
-          },
-        ); // After state is saved to productDetails, add it to
-      } // providers product data.
-      else {
-        // Re-build widget to reflect the UI transition during the data operation
-        setState(() {
-          // Set screen loading flag to true, as either the add/update operation would be performed next
-          isScreenLoading = true;
-        });
-
-        // productId.isNotEmpty, so, an edit/update operation
-        Provider.of<ProductsProvider>(context, listen: false)
-            .updateProduct(productId, productDetails);
-
-        // Re-build widget again to signify end of data operation, allowing the screen to be popped, taking it to prior
-        // screen in the Navigator stack.
-        setState(() {
-          // Unset the screen loading flag as the operation is now complete
-          isScreenLoading = false;
-        });
-
-        Navigator.of(context)
-            .pop(); // To remove this screen from the user's app view and get back to the previous
-        // ProductManagerScreen.
-      }
-    } // end of if(formInputIsClean)
   }
 
   @override
@@ -284,7 +345,9 @@ class _EditProductScreenState extends State<EditProductScreen> {
             icon: Icon(
               Icons.save,
             ),
-            onPressed: saveFormState,
+            onPressed: () async {
+              await saveFormState();
+            },
           ),
         ],
       ),
@@ -439,7 +502,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
                         // giving it a uniform form layout.
                         children: <Widget>[
                           // Child widgets have been wrapped in Expanded widget to ensure they take minimum possible
-                          // space in the layout than the default maximum possible space, the norm for Row widget.
+                          // space in the layout than the default maximum possible space, the norm for Row
                           // Or else, flutter will not be able to figure out the layout of widgets on the screen.
                           Container(
                             // To render image preview of the imageUrl given as input in the sibling TextFormField in the row
@@ -500,8 +563,8 @@ class _EditProductScreenState extends State<EditProductScreen> {
                                     isFavorite: productDetails.isFavorite,
                                   );
                                 },
-                                onFieldSubmitted: (_) {
-                                  saveFormState();
+                                onFieldSubmitted: (_) async {
+                                  await saveFormState();
                                 }),
                           ),
                         ],

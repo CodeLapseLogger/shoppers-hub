@@ -103,7 +103,7 @@ class CartItemWidget extends StatelessWidget {
                 child: FittedBox(
                   fit: BoxFit.cover,
                   child: Text(
-                    '\$${cartItem.price * cartItem.quantity}',
+                    '\$${(cartItem.price * cartItem.quantity).toStringAsFixed(2)}',
                   ),
                 ),
               ),

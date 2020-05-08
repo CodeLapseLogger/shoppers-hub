@@ -1,4 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+
+import '../firebase_urls.dart';
 
 // Class to model a cart item entity, different from a product item, as cart item also has a quantity.
 class CartItem {
@@ -19,6 +24,57 @@ class CartItem {
 // notifying the registered listeners in the widget tree for data changes from this Cart class turned data provider.
 class CartProvider with ChangeNotifier {
   Map<String, CartItem> _cartItems = {};
+
+  Future<void> refreshShoppingCart() async {
+    // method with asynchronous code to handle the http get request
+
+    var getResponse;
+
+    try {
+      getResponse = await http.get(
+        FIREBASE_URL_C + '.json',
+      ); // Get the cart items stored in Firebase backend
+    } catch (error) {
+      print(error);
+      throw error; // Forward the exception/error to the caller/client to have an appropriate action in place, like
+      // notifying user of the error.
+    }
+
+    // Control reaches here if no error occured with the GET request
+
+    _cartItems.clear(); // Clear old data from the local copy
+
+    // Extract Firebase data from response body and repopulate _cartItems with that data
+    final cartData = json.decode(getResponse.body) as Map<String, dynamic>;
+
+    cartData.forEach((cartItemId, cartItemMapValue) {
+      Map<String, dynamic> cartItemProdIdDataMap = cartItemMapValue
+          as Map<String, dynamic>; // casting "dynamic" type value to
+      // Map<prodId, Map<dataAttr, dataValue>>
+
+      String cartProductId = cartItemProdIdDataMap.keys
+          .toList()[0]; // Extracting the productId linked to cart item
+      Map<String, dynamic> cartItemData = cartItemProdIdDataMap.values
+          .toList()[0]; // converting "dynamic" value to list of
+      // single entry and extracting it as a map.
+
+      print('refreshShoppingCart - Cart item data: $cartItemData');
+
+      // Add new cart item as local copy to _cartItems
+      _cartItems.putIfAbsent(
+        cartProductId,
+        () => CartItem(
+          id: cartItemId,
+          name: cartItemData['name'],
+          price: cartItemData['price'],
+          quantity: cartItemData['quantity'],
+        ),
+      );
+    });
+
+    notifyListeners(); // Notify registered listeners
+
+  }
 
   Map<String, CartItem> get cartItems {
     return {
@@ -56,31 +112,168 @@ class CartProvider with ChangeNotifier {
   }
 
   // Method for listeners to pass on data to the provider and add/update existing cart entry.
-  void addItem(String productId, String productName, double productPrice) {
-    // Need to check if the product being added to cart already exists or not, to take appropriate action.
-    // Checks if the productId, which is also the key already exists
-    if (_cartItems.containsKey(productId)) {
-      _cartItems.update(
-        productId,
-        (matchedItem) => CartItem(
-          id: matchedItem.id,
-          name: matchedItem.name,
-          price: matchedItem.price,
-          quantity: matchedItem.quantity + 1,
-        ),
-      );
-    } else {
-      // Non-existent in the cart, so, create a new entry and add it to the cart map
-      _cartItems.putIfAbsent(
-        productId,
-        () => CartItem(
-          id: DateTime.now().toString(),
-          name: productName,
-          price: productPrice,
-          quantity: 1, // Only one item added to cart for each user-click.
-        ),
-      );
-    } // end of else-part
+  Future<void> addItem(
+      String productId, String productName, double productPrice) async {
+    // Client connection to span multiple http requests. Should be closed explicitly when
+    // all requests are done, unlike the requests made with "http" directly (like, http.get),
+    // which opens and closes client connection for each request made.
+    var client = http.Client();
+
+    try {
+      final getResponse = await client.get(FIREBASE_URL_C + '.json');
+
+      print('Cart get response status code: ${getResponse.statusCode}');
+      print('Cart get response body: ${json.decode(getResponse.body)}');
+
+      if (json.decode(getResponse.body) == null) {
+        // No cart collection has been created yet, requiring the first post request
+        // to create the collection and the first cart item entry.
+        final postResponse = await client.post(
+          FIREBASE_URL_C + '.json',
+          body: json.encode(
+            {
+              // Map with productId as key and value as anotehr Map with cart item data (in sync with CartItem).
+              '$productId': {
+                'name': productName,
+                'price': productPrice,
+                'quantity':
+                    1, // Being the first cart item, quantity should be 1 to start with.
+              },
+            },
+          ),
+        );
+
+        print('Cart post response status code: ${postResponse.statusCode}');
+        print('Cart post response body: ${json.decode(postResponse.body)}');
+
+        final cartItemFirebaseId = json.decode(postResponse.body)[
+            'name']; // id of cart item entry created in Firebase
+        print('Extracted cart item id in Firebase: $cartItemFirebaseId');
+
+        // Non-existent in the cart, so, create a new entry and add it to the cart map
+        _cartItems.putIfAbsent(
+          productId,
+          () => CartItem(
+            id: cartItemFirebaseId,
+            name: productName,
+            price: productPrice,
+            quantity: 1, // Only one item added to cart for each user-click.
+          ),
+        );
+      } else {
+        // "cart" collection has cart items
+        Map<String, dynamic> cartDataMap = json.decode(getResponse.body);
+
+        String existingCartItemId = "";
+        Map<String, dynamic> existingCartEntryData;
+        bool productExists = false;
+
+        // Capture the cart item entry and data if it already exists
+        cartDataMap.forEach((cartEntryId /*key*/, cartEntryData /*value*/) {
+          // Single cart entry in db
+          print('Cart item id: $cartEntryId');
+          print('Cart item data: $cartEntryData');
+
+          if (productExists == false) {
+            final productCartData = cartEntryData
+                as Map<String, dynamic>; //Map Entry: productId => cartData
+
+            if (productCartData.containsKey(productId)) {
+              existingCartItemId = cartEntryId;
+              productExists = true;
+              existingCartEntryData = productCartData.values
+                  .toList()[0]; // Single cart item data converted to list from
+              // the "values" iterable.
+            }
+          }
+        });
+
+        //final cartDataValues = cartDataMap.values as Map<String, dynamic>;
+
+        // Update cart item quantity of it exists or add a new one if it doesn't already exist in the cart.
+        if (productExists) {
+          // product entry exists in the cart
+
+          print('Existing cart item id: $existingCartItemId');
+          print('Existing cart item data: $existingCartEntryData');
+          print('Existing cart item name: ${existingCartEntryData['name']}');
+          // so, update the existing product entry by incrementing its quantity by 1.
+          await client.patch(
+            FIREBASE_URL_C + '/$existingCartItemId.json',
+            body: json.encode(
+              {
+                '$productId': {
+                  'name': existingCartEntryData['name'],
+                  'price': existingCartEntryData['price'],
+                  'quantity': existingCartEntryData['quantity'] + 1,
+                },
+              },
+            ),
+          );
+
+          // Update the local copy
+          print('Local cart items: $_cartItems');
+          _cartItems.update(
+            productId,
+            (matchedItem) {
+              CartItem(
+                id: matchedItem.id,
+                name: matchedItem.name,
+                price: matchedItem.price,
+                quantity: matchedItem.quantity + 1,
+              );
+            },
+          );
+        } else {
+          // product entry doesn't exist in teh cart, so, create one
+          final postResponse = await client.post(
+            FIREBASE_URL_C + '.json',
+            body: json.encode(
+              {
+                // Map with productId as key and value as anotehr Map with cart item data (in sync with CartItem).
+                '$productId': {
+                  'name': productName,
+                  'price': productPrice,
+                  'quantity':
+                      1, // Being the first cart item, quantity should be 1 to start with.
+                },
+              },
+            ),
+          );
+
+          print('Cart post response status code: ${postResponse.statusCode}');
+          print('Cart post response body: ${json.decode(postResponse.body)}');
+
+          final cartItemFirebaseId = json.decode(postResponse.body)[
+              'name']; // id of cart item entry created in Firebase
+          print('Extracted cart item id in Firebase: $cartItemFirebaseId');
+
+          // Non-existent in the cart, so, create a new entry and add it to the cart map
+          _cartItems.putIfAbsent(
+            productId,
+            () => CartItem(
+              id: cartItemFirebaseId,
+              name: productName,
+              price: productPrice,
+              quantity: 1, // Only one item added to cart for each user-click.
+            ),
+          );
+        }
+      }
+    } catch (error) {
+      print(error);
+
+      client
+          .close(); // close the connection to Firebase backend before existing with the exception throw.
+      // block above.
+
+      throw (error); // Forward the error/exception to the client/caller to take appropriate action, like notifying user of the
+      // error through the UI.
+    } finally {
+      client
+          .close(); // close the connection to Firebase backend, as all requests should have been completed in the try/catch
+      // block above.
+    }
 
     notifyListeners(); // Really important to have this line of code in methods that change provider data, in order to notify
     // all listeners that have registered for data changes, and thereby accordingly perform required action
@@ -122,7 +315,6 @@ class CartProvider with ChangeNotifier {
     CartItem itemAfterStateChange;
 
     if (_cartItems['$productId'].quantity > 1) {
-
       itemAfterStateChange = _cartItems.update(
         productId,
         (matchedCartItem) {
@@ -135,14 +327,13 @@ class CartProvider with ChangeNotifier {
           );
         },
       );
-    }
-    else{ // Current product quantity is 1, so, reducing it to 0 essentially implies a non-existant cart item and hence the need for its deletion.
+    } else {
+      // Current product quantity is 1, so, reducing it to 0 essentially implies a non-existant cart item and hence the need for its deletion.
       itemAfterStateChange = _cartItems.remove(productId);
     }
 
     notifyListeners(); // Notifies all listeners about the change in data state.
     return itemAfterStateChange;
-
   }
 
   // Method for listeners to clear all cart items

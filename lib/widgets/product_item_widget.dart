@@ -100,7 +100,49 @@ class ProductItemWidget extends StatelessWidget {
                           Icons.favorite_border,
                           color: Theme.of(context).accentColor,
                         ),
-                  onPressed: () => product.switchProductFavoriteState(),
+                  onPressed: () async {
+                    // method with asynchronous code to handle the returned Future and possible failed state
+                    // change.
+
+                    try {
+                      await product
+                          .switchProductFavoriteState(); // wait until the state switch completes
+
+                      Scaffold.of(context)
+                          .hideCurrentSnackBar(); // Hide existing Snackbar before popping in the new one
+
+                      // Display success message in a Snackbar at the bottom
+                      Scaffold.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            product.isFavorite
+                                ? '\'${product.title}\' marked as favorite !'
+                                : '\'${product.title}\' unmarked as favorite !',
+                            textAlign: TextAlign.center,
+                          ),
+                          duration: Duration(
+                            seconds: 2,
+                          ),
+                        ),
+                      );
+                    } catch (error) {
+                      Scaffold.of(context)
+                          .hideCurrentSnackBar(); // Hide existing Snackbar before popping in the new one
+
+                      // handle error by displaying the error message in a SnackBar at the bottom of he screen.
+                      Scaffold.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            error.toString(),
+                            textAlign: TextAlign.center,
+                          ),
+                          duration: Duration(
+                            seconds: 2,
+                          ),
+                        ),
+                      );
+                    }
+                  },
                 );
               },
             ),
@@ -109,8 +151,8 @@ class ProductItemWidget extends StatelessWidget {
                 Icons.shopping_cart,
                 color: Theme.of(context).accentColor,
               ),
-              onPressed: () {
-                cart.addItem(
+              onPressed: () async{ // asynchronous method to handle the future returned by addItem
+                await cart.addItem(
                     product.id,
                     product.title,
                     product
@@ -119,7 +161,8 @@ class ProductItemWidget extends StatelessWidget {
                     .where((cartItem) {
                       return cartItem.name == product.title;
                     })
-                    .toList()[0]
+                    .toList()[
+                        0] // Converted to single item list with matching item
                     .quantity;
 
                 Scaffold.of(context)

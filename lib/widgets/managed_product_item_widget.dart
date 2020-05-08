@@ -47,7 +47,8 @@ class ManagedProductItemWidget extends StatelessWidget {
                     // Navigate to the EditProductScreen by pushing it on to Navigator's screen stack
                     Navigator.of(context)
                         .pushNamed(EditProductScreen.routeName, arguments: {
-                      'productId': productId, // Passing in the product name for screen appBar display.
+                      'productId':
+                          productId, // Passing in the product name for screen appBar display.
                     });
                   },
                 ),
@@ -56,11 +57,54 @@ class ManagedProductItemWidget extends StatelessWidget {
                     Icons.delete,
                     color: Theme.of(context).errorColor,
                   ),
-                  onPressed: () {
-                    Provider.of<ProductsProvider>(context, listen: false).deleteProductById(productId); // Call the ProductsProvider delete method
-                                                                                         // to remove the product with given id.
-                                                                                         // Not listening to product data changes as
-                                                                                         // it is being deleted here.
+                  onPressed: () async {
+                    // Tagged as method with asynchronous code, since deleteProductById returns a Future
+                    try {
+                      await Provider.of<ProductsProvider>(context,
+                              listen: false)
+                          .deleteProductById(
+                              productId); // Call the ProductsProvider delete method
+                      // to remove the product with given id.
+                      // Not listening to product data changes as
+                      // it is being deleted here.
+
+                      // Display success message upon completion in a snackbar at the bottom of the app screen (Scaffold widget).
+                      // If the context doesn't resolve here, can also have it declared in a variable (Scaffold.of(context)), above
+                      // where the context is well-defined and not in a intermediary state.
+ 
+                      Scaffold.of(context).hideCurrentSnackBar(); // Hides any existing snakbar before showing a new one 
+                                                                  // with below code.
+
+                      Scaffold.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Deletion Successful !',
+                            textAlign: TextAlign.center,
+                          ),
+                          duration: Duration(
+                            seconds: 2,
+                          ),
+                        ),
+                      );
+                    } catch (error) {
+                      // For better user experience (UX), the nearest encapsulating Scaffold widget (screen: ProductManagerScreen) up the widget tree
+                      // will have a snackbar displayed at the bottom to notify user of the failed deletion.
+
+                      Scaffold.of(context).hideCurrentSnackBar(); // Hides any existing snakbar before showing a new one 
+                                                                  // with below code.
+
+                      Scaffold.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Deletion Failed !',
+                            textAlign: TextAlign.center,
+                          ),
+                          duration: Duration(
+                            seconds: 2,
+                          ),
+                        ),
+                      );
+                    }
                   },
                 ),
               ],

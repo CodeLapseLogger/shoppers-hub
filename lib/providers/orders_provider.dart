@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import './cart_provider.dart';
 
+import '../firebase_urls.dart';
+
 // Class to model an order item (collection of items in the cart)
 class OrderItem {
   final String id;
