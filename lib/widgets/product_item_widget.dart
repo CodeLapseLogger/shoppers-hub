@@ -157,7 +157,16 @@ class ProductItemWidget extends StatelessWidget {
                     product.title,
                     product
                         .price); // Adds/updates the product item/quantity in the cart.
-                int currentItemQuantity = cart.cartItems.values
+
+                // To address possible race conditions with asynchronous code run a loop until data is refreshed
+                var cartItemData = cart.cartItems.values;
+
+                while(cartItemData == null){ // Loop breaks only when cartItemData references valid data
+                  cartItemData = cart.cartItems.values;
+                }
+
+                // Control reaches here only when the cart item data has been extracted from Cart Provider
+                int currentItemQuantity = cartItemData
                     .where((cartItem) {
                       return cartItem.name == product.title;
                     })

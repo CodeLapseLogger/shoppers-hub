@@ -15,6 +15,13 @@ class CartItemWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scaffold = Scaffold.of(
+        context); // State of inherited widget (context) captured here as "context" would be in an
+    // unstable state when referenced in the try-catch block encapsulating the
+    // cart item deletion operation from the local copy in the CartProvider, returning a
+    // Future. This is more of a hack with the Stateless widget. A better management
+    // possible with Stateful widget with the use of didChangeDependencies(). Need to
+    // dig deeper.
     final CartProvider cartDetails =
         Provider.of<CartProvider>(context); // Registered listener for cart data
 
@@ -42,12 +49,13 @@ class CartItemWidget extends StatelessWidget {
         ),
       ),
       confirmDismiss: (_) {
-        return showDialog( // showDialog is a way to place a dialog widget on the app screen from a function that
-                           // doesn't return a widget. It is not tied to any widget on the app screen ( like Scaffold), so, it
-                           // is called directly.
-                           
-                           // Don't forget to return the Future<bool> given by showDialog method call, or else the desired effect
-                           // of dialog pop and chosen action can not be seen in the app.
+        return showDialog(
+            // showDialog is a way to place a dialog widget on the app screen from a function that
+            // doesn't return a widget. It is not tied to any widget on the app screen ( like Scaffold), so, it
+            // is called directly.
+
+            // Don't forget to return the Future<bool> given by showDialog method call, or else the desired effect
+            // of dialog pop and chosen action can not be seen in the app.
             context: context,
             builder: (buildContext) {
               return AlertDialog(
@@ -63,8 +71,11 @@ class CartItemWidget extends StatelessWidget {
                       'Yes',
                     ),
                     onPressed: () {
-                      Navigator.of(context).pop(true); // upon button press, user intention is known, so, close the alert dialog
-                                                       // and return the decision value reflecting the button text.
+                      // Possible place to call the delete method of the CartProvider************
+
+                      Navigator.of(context).pop(
+                          true); // upon button press, user intention is known, so, close the alert dialog
+                      // and return the decision value reflecting the button text.
                     },
                   ),
                   FlatButton(
@@ -72,20 +83,85 @@ class CartItemWidget extends StatelessWidget {
                       'No',
                     ),
                     onPressed: () {
-                      Navigator.of(context).pop(false); // upon button press, user intention is known, so, close the alert dialog
-                                                        // and return the decision value reflecting the button text.
+                      Navigator.of(context).pop(
+                          false); // upon button press, user intention is known, so, close the alert dialog
+                      // and return the decision value reflecting the button text.
                     },
                   ),
                 ],
               );
             });
       },
-      onDismissed: (_) {
+      onDismissed: (_) async {
         // Since we are only allowing one dismissible swipe direction, ignoring the direction input and no
         // other custom action would be necessary.
 
-        cartDetails.deleteItem(
-            cartItemProductId); // Using the passed in cart item's product-id as key, corresponding entry will be removed from the cart.
+        try {
+          await cartDetails.deleteItem(
+              cartItemProductId); // Using the passed in cart item's product-id as key, corresponding entry will be removed from the cart.
+
+          scaffold
+              .hideCurrentSnackBar(); // Hide the exsiting SnackBar before creating a new one with below code.
+
+          // Notify user of the successful operation through a message in a SnackBar tied to the closest Scaffold(or screen) widget
+          // up the widget tree.
+          scaffold.showSnackBar(
+            SnackBar(
+              duration: Duration(
+                seconds: 2,
+              ),
+              content: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: <Widget>[
+                  Text(
+                    '\'${cartItem.name}\' removed from cart',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.green,
+                      fontSize: 15,
+                    ),
+                  ),
+                  Icon(
+                    Icons.done,
+                    color: Colors.green,
+                    size: 25,
+                  ),
+                ],
+              ),
+            ),
+          );
+        } catch (error) {
+          scaffold
+              .hideCurrentSnackBar(); // Hide the exsiting SnackBar before creating a new one with below code.
+
+          // Notify user of the successful operation through a message in a SnackBar tied to the closest Scaffold(or screen) widget
+          // up the widget tree.
+          scaffold.showSnackBar(
+            SnackBar(
+              duration: Duration(
+                seconds: 2,
+              ),
+              content: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: <Widget>[
+                  Text(
+                    '\'${cartItem.name}\' could not be removed from cart',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Theme.of(context).errorColor,
+                      fontSize: 15,
+                    ),
+                  ),
+                  Icon(
+                    Icons.error,
+                    color: Theme.of(context).errorColor,
+                    size: 25,
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
       },
       child: Card(
         elevation: 6,

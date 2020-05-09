@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 import './cart_provider.dart';
 
@@ -32,16 +35,54 @@ class OrdersProvider with ChangeNotifier {
   }
 
   // Method for listeners to add as order to the pipeline
-  void addOrder(String orderId, List<CartItem> orderItemList, double payableAmt,
-      DateTime orderedTime) {
-    ordersPipeline.add(OrderItem(
-      id: orderId,
-      orderedItems: orderItemList,
-      orderTotal: payableAmt,
-      orderTimeStamp: orderedTime,
-    ));
+  Future<void> addOrder(String orderId, List<CartItem> orderItemList,
+      double payableAmt, DateTime orderedTime) async {
+    // Convert the cart item list in to a nested map to be json encodable data in the POST request body.
+    // final cartItemDataIterable = orderItemList.map((cartItem) {
+    //   return {
+    //     'name': cartItem.name,
+    //     'price': cartItem.price,
+    //     'quantity': cartItem.quantity
+    //   };
+    // });
 
-    notifyListeners(); // Very important to call this method inorder to have an automated notification setup for listeners
-    // upon data changes.
+    // Add the new order entry to the Firebase backend
+    try {
+      final getResponse = await http.post(
+        FIREBASE_URL_O + '.json',
+        body: json.encode({
+          'orderedCartItems':
+              orderItemList,
+          'totalOrderAmt': payableAmt,
+          'orderPlacementTime': orderedTime.toString(),
+        }, toEncodable: (cartItem) { // The toEncodable attribute is a way to provide an encoder function that can encode
+                                     // user-defined/custom data types to JSON. Here the custom type is CartItem,
+                                     // that types all entries in the list: orderItemList.
+          CartItem castedCartItem = cartItem as CartItem;
+          return {
+            'name': castedCartItem.name,
+            'price': castedCartItem.price,
+            'quantity': castedCartItem.quantity,
+          };
+        }),
+      );
+
+      String firebaseOrderId = json.decode(getResponse.body)['name'];
+
+      ordersPipeline.add(OrderItem(
+        id: firebaseOrderId,
+        orderedItems: orderItemList,
+        orderTotal: payableAmt,
+        orderTimeStamp: orderedTime,
+      ));
+
+      notifyListeners(); // Very important to call this method inorder to have an automated notification setup for listeners
+      // upon data changes.
+
+    } catch (error) {
+      print(error);
+      throw error; // For the widget world to have appropriate handling, like notifying user about the error, through a UI
+      // component.
+    }
   }
 }

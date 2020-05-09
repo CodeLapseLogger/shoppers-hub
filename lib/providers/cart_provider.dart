@@ -5,6 +5,8 @@ import 'package:http/http.dart' as http;
 
 import '../firebase_urls.dart';
 
+import '../models/failed_delete_operation.dart';
+
 // Class to model a cart item entity, different from a product item, as cart item also has a quantity.
 class CartItem {
   final String id;
@@ -42,38 +44,42 @@ class CartProvider with ChangeNotifier {
 
     // Control reaches here if no error occured with the GET request
 
-    _cartItems.clear(); // Clear old data from the local copy
+    // Run code to only process a non-empty cart
+    if (!(json.decode(getResponse.body) == null)) {
+      
+      _cartItems.clear(); // Clear old data from the local copy
 
-    // Extract Firebase data from response body and repopulate _cartItems with that data
-    final cartData = json.decode(getResponse.body) as Map<String, dynamic>;
+      // Extract Firebase data from response body and repopulate _cartItems with that data
+      final cartData = json.decode(getResponse.body) as Map<String, dynamic>;
 
-    cartData.forEach((cartItemId, cartItemMapValue) {
-      Map<String, dynamic> cartItemProdIdDataMap = cartItemMapValue
-          as Map<String, dynamic>; // casting "dynamic" type value to
-      // Map<prodId, Map<dataAttr, dataValue>>
+      cartData.forEach((cartItemId, cartItemMapValue) {
+        Map<String, dynamic> cartItemProdIdDataMap = cartItemMapValue
+            as Map<String, dynamic>; // casting "dynamic" type value to
+        // Map<prodId, Map<dataAttr, dataValue>>
 
-      String cartProductId = cartItemProdIdDataMap.keys
-          .toList()[0]; // Extracting the productId linked to cart item
-      Map<String, dynamic> cartItemData = cartItemProdIdDataMap.values
-          .toList()[0]; // converting "dynamic" value to list of
-      // single entry and extracting it as a map.
+        String cartProductId = cartItemProdIdDataMap.keys
+            .toList()[0]; // Extracting the productId linked to cart item
+        Map<String, dynamic> cartItemData = cartItemProdIdDataMap.values
+            .toList()[0]; // converting "dynamic" value to list of
+        // single entry and extracting it as a map.
 
-      print('refreshShoppingCart - Cart item data: $cartItemData');
+        print('refreshShoppingCart - Cart item data: $cartItemData');
 
-      // Add new cart item as local copy to _cartItems
-      _cartItems.putIfAbsent(
-        cartProductId,
-        () => CartItem(
-          id: cartItemId,
-          name: cartItemData['name'],
-          price: cartItemData['price'],
-          quantity: cartItemData['quantity'],
-        ),
-      );
-    });
+        // Add new cart item as local copy to _cartItems
+        _cartItems.putIfAbsent(
+          cartProductId,
+          () => CartItem(
+            id: cartItemId,
+            name: cartItemData['name'],
+            price: cartItemData['price'],
+            quantity: cartItemData['quantity'],
+          ),
+        );
+      });
 
-    notifyListeners(); // Notify registered listeners
-
+      print('Refreshed shopping cart data: ${_cartItems.values}');
+      notifyListeners(); // Notify registered listeners
+    }
   }
 
   Map<String, CartItem> get cartItems {
@@ -212,11 +218,11 @@ class CartProvider with ChangeNotifier {
           );
 
           // Update the local copy
-          print('Local cart items: $_cartItems');
+
           _cartItems.update(
             productId,
             (matchedItem) {
-              CartItem(
+              return CartItem(
                 id: matchedItem.id,
                 name: matchedItem.name,
                 price: matchedItem.price,
@@ -224,6 +230,8 @@ class CartProvider with ChangeNotifier {
               );
             },
           );
+
+          print('Local cart items are update: ${_cartItems.values.toList()}');
         } else {
           // product entry doesn't exist in teh cart, so, create one
           final postResponse = await client.post(
@@ -281,13 +289,15 @@ class CartProvider with ChangeNotifier {
   }
 
   // Method for listeners to perform the delete action on an existing item in the cart.
-  void deleteItem(String itemKey) {
+  Future<void> deleteItem(String itemKey) async {
     final CartItem deletedItem = _cartItems.remove(itemKey);
+    notifyListeners(); // Notify listeners of the change with deletion.
 
     if (deletedItem == null) {
       print(
           "Error deleting item !\n itemKey: " + itemKey + "\nDetails below:\n");
 
+      // Printed for debugging purposes
       _cartItems.removeWhere((currentItemKey, currentItemValue) {
         print("currentItemKey: " +
             currentItemKey +
@@ -297,7 +307,32 @@ class CartProvider with ChangeNotifier {
             itemKey);
         return currentItemKey == itemKey;
       });
+
+      throw FailedDeleteOperation(
+        errorMessage: 'Delete failed !',
+      ); // To allow appropriate action/handling at the caller end.
+
     } else {
+      try {
+        // RESTFUL DELETE API call to delete the cart item with given id in Firebase backend
+        final deleteResponse =
+            await http.delete(FIREBASE_URL_C + '/${deletedItem.id}.json');
+
+        print(
+            'Cart item delete operation respose status code: ${deleteResponse.statusCode}');
+        print(
+            'Cart item delete operation respose body: ${json.decode(deleteResponse.body)}');
+      } catch (error) {
+        print(error);
+
+        // Undo the delete done to local data copy
+        _cartItems.putIfAbsent(itemKey, () => deletedItem);
+        notifyListeners(); // Need this line here as the one outside the try-catch block will not be reached after the
+        // error is thrown.
+
+        throw error;
+      }
+
       // returned is not null, meaning a match was found and deletion was successful
       print("Item Successfully deleted !\n itemKey: " +
           itemKey +
@@ -337,8 +372,18 @@ class CartProvider with ChangeNotifier {
   }
 
   // Method for listeners to clear all cart items
-  void clear() {
-    _cartItems.clear(); // empties the map.
+  Future<void> clear() async{
+
+    try{
+      await http.delete(FIREBASE_URL_C + '.json'); // RESTFUL DELETE request to clear out all the cart items as a collection.
+    }
+    catch(error){
+      print(error);
+      throw error;
+    }
+    
+
+    _cartItems.clear(); // empties the local cart item data map.
 
     notifyListeners();
   }
