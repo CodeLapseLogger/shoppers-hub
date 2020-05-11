@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/cart_provider.dart';
-import '../providers/orders_provider.dart';
 
 import '../widgets/cart_item_widget.dart';
 import '../widgets/place_order_button_widget.dart';
@@ -119,7 +118,7 @@ class _CartDetailScreenState extends State<CartDetailScreen> {
                                   '\$${cartDetails.totalItemPrice.toStringAsFixed(2)}',
                                   style: Theme.of(context)
                                       .primaryTextTheme
-                                      .title
+                                      .headline6
                                       .copyWith(
                                         fontSize: 15,
                                       ),

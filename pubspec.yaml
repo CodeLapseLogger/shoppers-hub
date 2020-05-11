@@ -13,8 +13,15 @@ description: A new Flutter project.
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 version: 1.0.0+1
 
+# environment sdk version is the Dart version used in this app
+# Change: Updated min version from 2.1.0 to 2.6.0 to get rid of errors arising with the use of spread operator and if-condition
+# to conditionally include widgets in the widget tree during the build process. The error message included the suggested fix to
+# activate respective extensions on the command-line with the compile command.
+# 
+# On browsing online for fixes, Dart language GitHub issue # 2253 had the fix to update environment sdk version
+# Here is the link to the GitHub issue: https://github.com/Dart-Code/Dart-Code/issues/2253#issuecomment-584109179
 environment:
-  sdk: ">=2.1.0 <3.0.0"
+  sdk: ">=2.6.0 <3.0.0" 
 
 dependencies:
   flutter:
