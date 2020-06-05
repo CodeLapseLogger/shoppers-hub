@@ -55,8 +55,15 @@ class ProductItemWidget extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         child: GridTile(
           child: GestureDetector(
-            child: Image.network(
-              product.imageUrl,
+            child: FadeInImage( // Animated image widget to display a placeholder image while
+                                // the actual image is loading and to fade it in once fully
+                                // loaded over the network.
+                                // placeholder and image are image providers and not Image widgets
+                                // like Image.network().
+              placeholder: AssetImage("assets/images/product-placeholder.png",),
+              image: NetworkImage(
+                product.imageUrl,
+              ),
               fit: BoxFit.cover,
             ),
             onTap: () {
@@ -151,7 +158,8 @@ class ProductItemWidget extends StatelessWidget {
                 Icons.shopping_cart,
                 color: Theme.of(context).accentColor,
               ),
-              onPressed: () async{ // asynchronous method to handle the future returned by addItem
+              onPressed: () async {
+                // asynchronous method to handle the future returned by addItem
                 await cart.addItem(
                     product.id,
                     product.title,
@@ -161,7 +169,8 @@ class ProductItemWidget extends StatelessWidget {
                 // To address possible race conditions with asynchronous code run a loop until data is refreshed
                 var cartItemData = cart.cartItems.values;
 
-                while(cartItemData == null){ // Loop breaks only when cartItemData references valid data
+                while (cartItemData == null) {
+                  // Loop breaks only when cartItemData references valid data
                   cartItemData = cart.cartItems.values;
                 }
 
