@@ -49,11 +49,9 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
   Animation<Size>
       _authFieldAnimation; // Animation for the change in form height with add/remove of field with login/signup.
 
-
   @override
-  void didChangeDependencies(){
+  void didChangeDependencies() {
     super.didChangeDependencies();
-
 
     /* ************************************************************************************* *
      * OBSERVATION:                                                                          *
@@ -90,26 +88,19 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
       ),
     );
 
-  
     _authFieldAnimation = Tween<Size>(
-      begin: Size(double.infinity, 280/*MediaQuery.of(context).size.height * 0.55*/),
-      end: Size(
-          double.infinity, 360
+      begin: Size(
+          double.infinity, 280 /*MediaQuery.of(context).size.height * 0.55*/),
+      end: Size(double.infinity, 360
           /*MediaQuery.of(context).size.height *
-              0.75*/), // Giving the animated form field a height
+              0.75*/
+          ), // Giving the animated form field a height
       // of 20% or 0.2
     ).animate(CurvedAnimation(
       parent: _authFormAnimeController,
       curve: Curves.easeInOutBack,
     ));
-
-    // Add a listener to the animation to call setState(), so as to rebuild the widget
-    // each time the animation frame changes at the rate of 60 milliseconds.
-    _authFieldAnimation.addListener(() => setState((){})); // call to setState here just to rebuild widget
-
-
   }
-
 
   Future<void> showDialogWrapper(String errMsg, String dialogButtonText) async {
     await showDialog(
@@ -162,14 +153,13 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
     // Important to dispose off all the heap instances created with "new" keyword
     _pwdFieldController.dispose();
 
+    _authFormAnimeController.dispose(); // Dispose off the animation controller
+
     if (_formState.currentState != null)
       _formState.currentState
           .dispose(); // FormState is a StatefulWidget disposed through its state.
     _passwordFocus.dispose();
     _confirmPasswordFocus.dispose();
-
-    _authFieldAnimation.removeListener(() => setState((){})); // Remove the registered listener for the
-                                                              // animation.
 
     super.dispose();
   }
@@ -185,15 +175,15 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
       }
     });
 
-    if(_userChosenAuthAction == AuthAction.SIGNUP){
-      _authFormAnimeController.forward(); // Run the animation forward for signup action,
-                                          // animating height when new form field is added.
+    if (_userChosenAuthAction == AuthAction.SIGNUP) {
+      _authFormAnimeController
+          .forward(); // Run the animation forward for signup action,
+      // animating height when new form field is added.
+    } else {
+      _authFormAnimeController
+          .reverse(); // Run the animation backward for login action,
+      // animating height when existing form field is removed.
     }
-    else{
-      _authFormAnimeController.reverse(); // Run the animation backward for login action,
-                                          // animating height when existing form field is removed.
-    }
-
   }
 
   // Method to validate form and perform the save to allow login/signup
@@ -274,12 +264,30 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
               'https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Ftse3.mm.bing.net%2Fth%3Fid%3DOIP.eea9GWyoH31zEBu5khsKUwHaE8%26pid%3DApi&f=1',
             ),
           ),
-          Container(
-            //height: MediaQuery.of(context).size.height * 0.55,
-            height: _authFieldAnimation.value.height, // Set the current height value from the animation instance
-                                                      // as the height of this container.
-            alignment: Alignment.bottomCenter,
-            margin: EdgeInsets.all(14),
+          AnimatedBuilder(
+            animation: _authFieldAnimation,
+            builder: (buildContext, builderChild) { // The builderChild argument is actually the same as the named "child" 
+                                                    // attribute in AnimatedBuilder widget (SingleChildScrollView).
+                                                    // It is passed in as a static child widget, meaning a widget not re-built
+                                                    // when the builder method in AnimatedBuilder runs. However, there are
+                                                    // parts in the widget tree that do need to rebuild depending on whether the
+                                                    // authentication action is a login or signup. Because that builderChild is
+                                                    // part of the widget returned by the builder, changes do reflect when the
+                                                    // builder method runs.
+                                                    // This mapping of "child" and "builderChild" widgets is especially useful
+                                                    // with code refactoring, where a small portion of the widget tree until the
+                                                    // first child can be made as the widget returned by the builder method and
+                                                    // rest of the widget tree can be made as the child.
+              return Container(
+                //height: MediaQuery.of(context).size.height * 0.55,
+                height: _authFieldAnimation.value
+                    .height, // Set the current height value from the animation instance
+                // as the height of this container.
+                alignment: Alignment.bottomCenter,
+                margin: EdgeInsets.all(14),
+                child: builderChild,
+              );
+            },
             child: SingleChildScrollView(
               child: Form(
                 key: _formState, // Gives access to this Form's state
