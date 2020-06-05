@@ -49,6 +49,12 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
   Animation<Size>
       _authFieldAnimation; // Animation for the change in form height with add/remove of field with login/signup.
 
+  Animation<double>
+      _authFieldFadeAnimation; // Animation for the confirm password field for sign-up action
+
+  Animation<Offset>
+      _authFieldSlideAnimation; // Animation for the confirm password field for sign-up action
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -84,7 +90,7 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
       // only when it is in the viewport. The "this" associates controller to the
       // state object and thereby to the widget mapped to the state.
       duration: Duration(
-        milliseconds: 450,
+        milliseconds: 400,
       ),
     );
 
@@ -99,6 +105,30 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
     ).animate(CurvedAnimation(
       parent: _authFormAnimeController,
       curve: Curves.easeInOutBack,
+    ));
+
+    // Configure fade animation for the confirm password field with signup action.
+    // Since the fade is controlled by opacity, the being and end attributes range
+    // from 0 (invisible) to 1 (completely visible).
+    _authFieldFadeAnimation =
+        Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(
+      parent: _authFormAnimeController,
+      curve: Curves.easeInBack,
+      reverseCurve: Curves.easeOutBack,
+    ));
+
+    // Configure slide animation for the confirm password field with signup action.
+    // Since the slide should appear as if it has been drawn from the left, outside
+    // the view port to its proper position, the Offset along x-axis would be
+    // from -1.0 (notice the -ve value for start outside its default start position)
+    // to 0 (its default start position). However, the offset along y-axis will be unaltered.
+    _authFieldSlideAnimation = Tween<Offset>(
+      begin: Offset(-1.0, 0),
+      end: Offset(0.0, 0.0),
+    ).animate(CurvedAnimation(
+      parent: _authFormAnimeController,
+      curve: Curves.easeInBack,
+      reverseCurve: Curves.easeOutBack
     ));
   }
 
@@ -175,20 +205,15 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
       }
     });
 
-    // Commented out as AnimatedContainer is being used in this version of code,
-    // which implicitly controls the animation based on given duration, curve and 
-    // toggle in height with auth action. So, there is no need for a controller
-    // when using a widget with built-in support to control/render animation.
-
-    // if (_userChosenAuthAction == AuthAction.SIGNUP) {
-    //   _authFormAnimeController
-    //       .forward(); // Run the animation forward for signup action,
-    //   // animating height when new form field is added.
-    // } else {
-    //   _authFormAnimeController
-    //       .reverse(); // Run the animation backward for login action,
-    //   // animating height when existing form field is removed.
-    // }
+    if (_userChosenAuthAction == AuthAction.SIGNUP) {
+      _authFormAnimeController
+          .forward(); // Run the animation forward for signup action,
+      // animating height when new form field is added.
+    } else {
+      _authFormAnimeController
+          .reverse(); // Run the animation backward for login action,
+      // animating height when existing form field is removed.
+    }
   }
 
   // Method to validate form and perform the save to allow login/signup
@@ -274,11 +299,13 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
           // animation curve (given to the animation instance when using AnimatedBuilder) to render the animation in the UI.
           // So, AnimatedContainer is a better built-in widget than AnimatedBuilder with tween animation when attributes like
           // height, width, padding,... of a Container widget need to be animated as part of their change.
-          // As an animation instance is not being used here, the normal auth action flag is being used below for setting a 
-          // different height depending on the action, which will be factored in by the in-built animator to render the 
+          // As an animation instance is not being used here, the normal auth action flag is being used below for setting a
+          // different height depending on the action, which will be factored in by the in-built animator to render the
           // desired animation.
           AnimatedContainer(
-            duration: Duration(milliseconds: 450,),
+            duration: Duration(
+              milliseconds: 400,
+            ),
             curve: Curves.easeInOutBack,
             //height: MediaQuery.of(context).size.height * 0.55,
             height: (_userChosenAuthAction == AuthAction.SIGNUP) ? 360 : 280,
@@ -420,37 +447,55 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
                             height: 15,
                           ),
                         if (_userChosenAuthAction == AuthAction.SIGNUP)
-                          TextFormField(
-                              decoration: InputDecoration(
-                                icon: Icon(
-                                  Icons.lock_outline,
-                                ),
-                                border: OutlineInputBorder(),
-                                labelText: 'Confirm Password',
-                                labelStyle: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                errorStyle: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold,
-                                  backgroundColor: Colors.white38,
-                                ),
-                              ),
-                              cursorColor: Colors.black38,
-                              focusNode: _confirmPasswordFocus,
-                              onFieldSubmitted: (_) => FocusScope.of(context)
-                                  .requestFocus(_actionButtonFocusNode),
-                              keyboardType: TextInputType.visiblePassword,
-                              obscureText: true,
-                              validator: (userReEnteredPassword) {
-                                if (!(userReEnteredPassword ==
-                                    _pwdFieldController.text)) {
-                                  return "Password Mismatch";
-                                } else {
-                                  return null;
-                                }
-                              }),
+                          FadeTransition(
+                            // FadeTransition renders configured animation in
+                            // _authFieldFadeAnimation by controlling its
+                            // appearance in the view port by transitioning the
+                            // opacity with the range, also set in the Tween animation.
+                            // It automatically rebuilds the nested TextFormField widget
+                            // with change in animation, like AnimatedBuilder, without the
+                            // need for setting up an explicit listener. However, will still
+                            // need the controller and animation instances.
+                            // Also, single controller can be mapped to multiple animations
+                            // configured for a single widget, with a single trigger event or
+                            // widget state change.
+                            opacity: _authFieldFadeAnimation,
+                            child: SlideTransition(
+                              position: _authFieldSlideAnimation,
+                              child: TextFormField(
+                                  decoration: InputDecoration(
+                                    icon: Icon(
+                                      Icons.lock_outline,
+                                    ),
+                                    border: OutlineInputBorder(),
+                                    labelText: 'Confirm Password',
+                                    labelStyle: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    errorStyle: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                      backgroundColor: Colors.white38,
+                                    ),
+                                  ),
+                                  cursorColor: Colors.black38,
+                                  focusNode: _confirmPasswordFocus,
+                                  onFieldSubmitted: (_) =>
+                                      FocusScope.of(context)
+                                          .requestFocus(_actionButtonFocusNode),
+                                  keyboardType: TextInputType.visiblePassword,
+                                  obscureText: true,
+                                  validator: (userReEnteredPassword) {
+                                    if (!(userReEnteredPassword ==
+                                        _pwdFieldController.text)) {
+                                      return "Password Mismatch";
+                                    } else {
+                                      return null;
+                                    }
+                                  }),
+                            ),
+                          ),
                         SizedBox(
                           height: 15,
                         ),
