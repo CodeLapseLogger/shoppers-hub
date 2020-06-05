@@ -2,9 +2,10 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:intl/intl.dart'; // For formatting DateTime instances
 
 import './cart_provider.dart';
+
+import '../models/expired_authorization_exception.dart';
 
 import '../firebase_urls.dart';
 
@@ -35,6 +36,22 @@ class OrdersProvider with ChangeNotifier {
     return [...ordersPipeline];
   }
 
+  // Property to hold the authentication token and userId to be used with REST API calls.
+  String authToken="";
+  String userId="";
+
+  // Setter to set the authToken
+  set authorizationToken(String userToken){
+    authToken = userToken;
+  }
+
+  // Setter to set the userId
+  set userIdentification(String uId){
+    userId = uId;
+  }
+
+
+
   // Refresh local orders data copy with new data from remote Firebase db
   Future<void> refreshOrderData() async {
 
@@ -42,18 +59,37 @@ class OrdersProvider with ChangeNotifier {
 
     try {
 
-      getResponse = await http.get(FIREBASE_URL_O + '.json');
+
+      // Clear existing order data before repopulating the order list.
+      // Note: It is important to clear the orders list before this method returns
+      // because of no orders data sent by the GET response.
+      // Within the emulator, it might be fine as data get purged with each refresh (without autologin yet).
+      // But, when installed on a device, there wont be an app restart (unless user kills and restarts the device).
+      // So, when one user logs out and another user logs in to the app on the same device, orders data from previous
+      // login will still be available if not cleared here, leading to data privacy violation.
+      ordersPipeline.clear();
+      notifyListeners();
+
+      getResponse = await http.get(FIREBASE_URL_O + '/$userId.json?auth=$authToken'); // URL for user-specific orders
 
       print('Orders get response body: ${json.decode(getResponse.body)}');
 
       final Map<String, dynamic> orderData = json.decode(getResponse.body);
 
+      if(orderData == null){ // Means no orders have been placed by the logged-in user yet
+        return;
+      }
 
-      // Clear existing order data before repopulating the oeder list
-      ordersPipeline.clear();
-      notifyListeners();
+      // Check if there was an error with authenticating the get api call
+      if(orderData['error'] != null){
+          final errMsg = orderData['error'] as String;
+          if(errMsg.contains("auth token")){
+            throw ExpiredAuthorizationException(errorMessage: "Authorization Expired");
+          }
+      }
 
-      // Extract order data from the GET response, convert it to instances of OrderItem and add to the local oder data copy
+      
+      // Extract order data from the GET response, convert it to instances of OrderItem and add to the local order data copy
       // in ordersPipeline.
       orderData.forEach((orderId, orderDetails) {
         final List<dynamic> mappedCartItemList =
@@ -119,8 +155,8 @@ class OrdersProvider with ChangeNotifier {
 
     // Add the new order entry to the Firebase backend
     try {
-      final getResponse = await http.post(
-        FIREBASE_URL_O + '.json',
+      final postResponse = await http.post(
+        FIREBASE_URL_O + '/$userId.json?auth=$authToken',
         body: json.encode({
           'orderedCartItems': orderItemList,
           'totalOrderAmt': payableAmt,
@@ -140,7 +176,7 @@ class OrdersProvider with ChangeNotifier {
         }),
       );
 
-      String firebaseOrderId = json.decode(getResponse.body)['name'];
+      String firebaseOrderId = json.decode(postResponse.body)['name'];
 
       ordersPipeline.add(OrderItem(
         id: firebaseOrderId,

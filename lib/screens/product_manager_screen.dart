@@ -17,18 +17,18 @@ class ProductManagerScreen extends StatelessWidget {
 
   final scaffoldStateRef = GlobalKey<ScaffoldState>();
 
-
   // Method to refresh the product data in the provider and notify its listeners (ProductManagerScreen is one of them),
   // and get access to latest data to be displayed in the UI.
-  Future<void> refreshProductData(BuildContext context) async{
-    await Provider.of<ProductsProvider>(context).refreshProducts();
+  Future<void> refreshUsersProductData(BuildContext context) async {
+    await Provider.of<ProductsProvider>(context, listen: false)
+        .refreshProducts(true); // just to refresh data but not a listener
+    // as the build method also has a registered
+    // listener. Also, the input argument is to set the flag to fetch 
+    // user-specific product data.
   }
-
 
   @override
   Widget build(BuildContext context) {
-    ProductsProvider productCollection = Provider.of<ProductsProvider>(
-        context); // Listener registered for data changes from ProductsProvider.
 
     return Scaffold(
       key: scaffoldStateRef,
@@ -68,25 +68,74 @@ class ProductManagerScreen extends StatelessWidget {
         ],
       ),
       drawer: SideDrawerWidget(),
-      body: RefreshIndicator(
-        onRefresh: () async{ // As the method to refresh data needs the context, it has been inside a wrapper method that is 
-                             // also asynchronous to handle the Future returned by the method and also satisfy the requirement
-                             // of the onRefresh attribute.
-          await refreshProductData(context);
-        },
-              child: ListView.builder(
-          itemBuilder: (buildContext, productIdx) {
-            return Padding(
-              padding: const EdgeInsets.all(10.0),
-              child: ManagedProductItemWidget(
-                productId: productCollection.products[productIdx].id,
-                productName: productCollection.products[productIdx].title,
-                productImageUrl: productCollection.products[productIdx].imageUrl,
+      body: FutureBuilder(
+        future:
+            Provider.of<ProductsProvider>(context, listen: false).refreshProducts(true), // Rendered data is void, so can not use
+                                                                               // "data" attribute in userOwnedProdSnapshot
+                                                                               // for the list of products to be displayed
+                                                                               // in ListView.builder below. For that
+                                                                               // reason, Consumer<ProductsProvider> has been
+                                                                               // used to render the required data from provider
+                                                                               // Since , it is wired to always listen to changes
+                                                                               // in provider data, will be reactive and consistent
+                                                                               // with all data changes in the local product 
+                                                                               // collection. So, run all aysnchronous code first
+                                                                               // with FutureBuilder, followed by synchronous data
+                                                                               // access through Consumer<ProductProvider> within
+                                                                               // the FutureBuilder. The reversed widget hierarchy,
+                                                                               // with asynchronous code nested in synchronous code
+                                                                               // will not lead to desired effect of pause in the
+                                                                               // synchronous code, so as to wait for completion of
+                                                                               // asynchronous action with value. It will only have 
+                                                                               // Future<value> that can not be used for rendering
+                                                                               // data in widgets.
+        builder: (builderContext, userOwnedProdSnapshot) {
+          if (userOwnedProdSnapshot.connectionState ==
+              ConnectionState.waiting) {
+            return Center(
+              child: CircularProgressIndicator(),
+            );
+          } else if (userOwnedProdSnapshot.hasError) {
+            return Center(
+              child: Text(
+                'ERROR: Products rendering failed',
+                style: TextStyle(
+                  color: Theme.of(context).errorColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 17,
+                ),
               ),
             );
-          },
-          itemCount: productCollection.products.length,
-        ),
+          } else {
+            // Future successfully rendered a value
+            return RefreshIndicator(
+              onRefresh: () async {
+                // As the method to refresh data needs the context, it has been inside a wrapper method that is
+                // also asynchronous to handle the Future returned by the method and also satisfy the requirement
+                // of the onRefresh attribute.
+                await refreshUsersProductData(context);
+              },
+              child: Consumer<ProductsProvider>(
+                builder: (consumerContext, productProviderInstance, _ /* ignoring static child widget, as there isn't
+                                                                                one in ListView.builder*/) =>
+                              ListView.builder(
+                  itemBuilder: (buildContext, productIdx) {
+                    return Padding(
+                      padding: const EdgeInsets.all(10.0),
+                      child: ManagedProductItemWidget(
+                        productId: productProviderInstance.products[productIdx].id,
+                        productName: productProviderInstance.products[productIdx].title,
+                        productImageUrl:
+                            productProviderInstance.products[productIdx].imageUrl,
+                      ),
+                    );
+                  },
+                  itemCount: productProviderInstance.products.length,
+                ),
+              ),
+            );
+          }
+        },
       ),
     );
   }

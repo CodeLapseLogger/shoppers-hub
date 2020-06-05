@@ -43,6 +43,11 @@ dependencies:
   # from the app to external/local servers.
   http: ^0.12.1
 
+  # The following dart package allows storing data on device, to be 
+  # accessible to an app across lifecycles.
+  shared_preferences: ^0.5.7+3
+
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

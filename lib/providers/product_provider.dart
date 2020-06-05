@@ -31,6 +31,19 @@ class ProductProvider with ChangeNotifier {
       @required this.imageUrl,
       this.isFavorite = false});
 
+  // To store the authentication token and user id details sent by Firebase
+  String authToken = "";
+  String userId = "";
+
+  // Setter methods for token and user-id
+  set authorizationToken(String token) {
+    authToken = token;
+  }
+
+  set userIdentification(String uId) {
+    userId = uId;
+  }
+
   Future<void> switchProductFavoriteState() async {
     isFavorite =
         !isFavorite; // Set the negation of the current state as the new state, to mark or unmark a Product class
@@ -39,22 +52,26 @@ class ProductProvider with ChangeNotifier {
     // enabling rendering of each product as a UI component.
     notifyListeners();
 
-    final String url = FIREBASE_URL_P +
-        '/$id.json'; // url tied to specific product entry through its id.
+    final String url = FIREBASE_URL_UF +
+        '/$userId/$id.json?auth=$authToken'; // url tied to specific userId and also productId.
 
     try {
       // Update just the isFavorite field of the specified product entry in the db, through the url.
       // Other field data in the db entry will be retained with PATCH call and not overwritten, unlike PUT.
-      final patchResponse = await http.patch(
+      final patchResponse = await http.put(
         url,
         body: json.encode(
-          {
-            'isFavorite': isFavorite,
-          },
+          // Here, only the boolean isFavorite is being encoded. It will be mapped to the productId in the url
+
+          // This data organization will help with filtration of favorites when rendering in the ProductsListingScreen.
+          // {'isFavorite':isFavorite},
+          isFavorite
         ),
       );
 
       print('PATCH request status code: ${patchResponse.statusCode}');
+      print('response headers: ${patchResponse.headers}');
+      print('response body: ${json.decode(patchResponse.body)}');
 
       // ***** IMPORTANT OBSERVATION:
       // There seems to be a race condition with the asynchronous code here !
@@ -94,8 +111,24 @@ class ProductProvider with ChangeNotifier {
       // Also, notify the data change to registered listeners.
       isFavorite = !isFavorite;
       notifyListeners();
-
+      print(error);
       print('PATCH request failed !');
+
+      // try {
+      //   final postResponse = await http.post(
+      //     url,
+      //     body: json.encode(
+      //       // Here, only the boolean isFavorite is being encoded. It will be mapped to the productId in the url
+      //       {
+      //         // This data organization will help with filtration of favorites when rendering in the ProductsListingScreen.
+      //         isFavorite,
+      //       },
+      //     ),
+      //   );
+
+      //   print(
+      //       'Favorite toggle post response: ${json.decode(postResponse.body)}');
+      // } catch (error) {
       if (isFavorite) {
         throw FailedMarkingAsFavoriteException(
           errorMessage: '\'$title\' could not be unmarked as favorite !',
@@ -109,6 +142,7 @@ class ProductProvider with ChangeNotifier {
         // the data update/patch failure. Client receiving the exception would have to call the toString() method to extract
         // the error message.
       }
+      //}
     }
   }
 }

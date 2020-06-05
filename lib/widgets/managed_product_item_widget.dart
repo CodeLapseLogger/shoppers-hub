@@ -23,6 +23,7 @@ class ManagedProductItemWidget extends StatelessWidget {
     return Column(
       children: <Widget>[
         ListTile(
+          //key: ValueKey(productId), // Key's uniqueness is derived from the uniqueness of productId value
           leading: CircleAvatar(
             backgroundImage: NetworkImage(
               productImageUrl,
@@ -60,18 +61,12 @@ class ManagedProductItemWidget extends StatelessWidget {
                   onPressed: () async {
                     // Tagged as method with asynchronous code, since deleteProductById returns a Future
                     try {
-                      await Provider.of<ProductsProvider>(context,
-                              listen: false)
-                          .deleteProductById(
-                              productId); // Call the ProductsProvider delete method
-                      // to remove the product with given id.
-                      // Not listening to product data changes as
-                      // it is being deleted here.
+
+                      
 
                       // Display success message upon completion in a snackbar at the bottom of the app screen (Scaffold widget).
                       // If the context doesn't resolve here, can also have it declared in a variable (Scaffold.of(context)), above
                       // where the context is well-defined and not in a intermediary state.
- 
                       Scaffold.of(context).hideCurrentSnackBar(); // Hides any existing snakbar before showing a new one 
                                                                   // with below code.
 
@@ -86,6 +81,18 @@ class ManagedProductItemWidget extends StatelessWidget {
                           ),
                         ),
                       );
+
+
+                      await Provider.of<ProductsProvider>(context,
+                              listen: false)
+                          .deleteProductById(
+                              productId); // Call the ProductsProvider delete method
+                      // to remove the product with given id.
+                      // Not listening to product data changes as
+                      // it is being deleted here.
+
+                      
+                      
                     } catch (error) {
                       // For better user experience (UX), the nearest encapsulating Scaffold widget (screen: ProductManagerScreen) up the widget tree
                       // will have a snackbar displayed at the bottom to notify user of the failed deletion.

@@ -26,6 +26,18 @@ class CartItem {
 // notifying the registered listeners in the widget tree for data changes from this Cart class turned data provider.
 class CartProvider with ChangeNotifier {
   Map<String, CartItem> _cartItems = {};
+  String authToken=""; // To store auth token to be used with the Firebase API calls.
+  String userId=""; // To store user-id of the logged-in user
+
+  // Setter to set the token property of the provider
+  set authorizationToken(String userToken){
+      authToken = userToken;
+  }
+
+  // Setter to set the userId property of the provider
+  set userIdentification(String uId){
+    userId = uId;
+  }
 
   Future<void> refreshShoppingCart() async {
     // method with asynchronous code to handle the http get request
@@ -34,7 +46,7 @@ class CartProvider with ChangeNotifier {
 
     try {
       getResponse = await http.get(
-        FIREBASE_URL_C + '.json',
+        FIREBASE_URL_C + '/$userId.json?auth=$authToken',
       ); // Get the cart items stored in Firebase backend
     } catch (error) {
       print(error);
@@ -126,7 +138,7 @@ class CartProvider with ChangeNotifier {
     var client = http.Client();
 
     try {
-      final getResponse = await client.get(FIREBASE_URL_C + '.json');
+      final getResponse = await client.get(FIREBASE_URL_C + '/$userId.json?auth=$authToken');
 
       print('Cart get response status code: ${getResponse.statusCode}');
       print('Cart get response body: ${json.decode(getResponse.body)}');
@@ -135,7 +147,7 @@ class CartProvider with ChangeNotifier {
         // No cart collection has been created yet, requiring the first post request
         // to create the collection and the first cart item entry.
         final postResponse = await client.post(
-          FIREBASE_URL_C + '.json',
+          FIREBASE_URL_C + '/$userId.json?auth=$authToken',
           body: json.encode(
             {
               // Map with productId as key and value as anotehr Map with cart item data (in sync with CartItem).
@@ -205,7 +217,7 @@ class CartProvider with ChangeNotifier {
           print('Existing cart item name: ${existingCartEntryData['name']}');
           // so, update the existing product entry by incrementing its quantity by 1.
           await client.patch(
-            FIREBASE_URL_C + '/$existingCartItemId.json',
+            FIREBASE_URL_C + '/$userId/$existingCartItemId.json?auth=$authToken',
             body: json.encode(
               {
                 '$productId': {
@@ -233,9 +245,9 @@ class CartProvider with ChangeNotifier {
 
           print('Local cart items are update: ${_cartItems.values.toList()}');
         } else {
-          // product entry doesn't exist in teh cart, so, create one
+          // product entry doesn't exist in the cart, so, create one
           final postResponse = await client.post(
-            FIREBASE_URL_C + '.json',
+            FIREBASE_URL_C + '/$userId.json?auth=$authToken',
             body: json.encode(
               {
                 // Map with productId as key and value as anotehr Map with cart item data (in sync with CartItem).
@@ -272,7 +284,7 @@ class CartProvider with ChangeNotifier {
       print(error);
 
       client
-          .close(); // close the connection to Firebase backend before existing with the exception throw.
+          .close(); // close the connection to Firebase backend before exiting with the exception throw.
       // block above.
 
       throw (error); // Forward the error/exception to the client/caller to take appropriate action, like notifying user of the
@@ -316,7 +328,7 @@ class CartProvider with ChangeNotifier {
       try {
         // RESTFUL DELETE API call to delete the cart item with given id in Firebase backend
         final deleteResponse =
-            await http.delete(FIREBASE_URL_C + '/${deletedItem.id}.json');
+            await http.delete(FIREBASE_URL_C + '/$userId/${deletedItem.id}.json?auth=$authToken');
 
         print(
             'Cart item delete operation respose status code: ${deleteResponse.statusCode}');
@@ -375,7 +387,7 @@ class CartProvider with ChangeNotifier {
   Future<void> clear() async{
 
     try{
-      await http.delete(FIREBASE_URL_C + '.json'); // RESTFUL DELETE request to clear out all the cart items as a collection.
+      await http.delete(FIREBASE_URL_C + '/$userId.json?auth=$authToken'); // RESTFUL DELETE request to clear out all the cart items as a collection.
     }
     catch(error){
       print(error);

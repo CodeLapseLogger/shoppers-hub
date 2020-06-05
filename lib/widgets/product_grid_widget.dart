@@ -5,6 +5,7 @@ import '../widgets/product_item_widget.dart';
 
 import '../providers/products_provider.dart';
 import '../providers/product_provider.dart';
+import '../providers/authentication_provider.dart';
 
 class ProductGridWidget extends StatelessWidget {
   final bool filterFavorites;
@@ -12,6 +13,72 @@ class ProductGridWidget extends StatelessWidget {
   ProductGridWidget({
     @required this.filterFavorites,
   });
+
+
+  Widget renderErrorWidget() {
+    return Center(
+      child: RichText(
+        text: TextSpan(
+            text: 'ERROR: Failed rendering favorites',
+            style: TextStyle(
+              color: Colors.red,
+              fontWeight: FontWeight.bold,
+              fontSize: 17,
+            )),
+        textAlign: TextAlign.center,
+      ),
+    );
+  }
+
+  Widget renderGridViewBuilder(List<ProductProvider> products) {
+    return GridView.builder(
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 3 / 2, // height should be greater than width
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+      ),
+      itemCount: products.length,
+      itemBuilder: (builderContext, productIdx) {
+        //final ProductProvider product = productList[productIdx];
+
+        return ChangeNotifierProxyProvider<AuthenticationProvider,
+            ProductProvider>(
+          // Setting-up the provider above the ProductItemWidget, which listens for the ProductProvider
+          // data. If context is needed then the normal constructor can be used instead of the value
+          // contrsuctor.
+          create: (builderContext) => ProductProvider(
+            // Base instance for data source
+            id: products[productIdx].id,
+            title: products[productIdx].title,
+            price: products[productIdx].price,
+            description: products[productIdx].description,
+            imageUrl: products[productIdx].imageUrl,
+            isFavorite: products[productIdx].isFavorite,
+          ),
+          update: (builderContext, authProviderInstance,
+                  previousProductProviderInstance) => // Update auth data from auth provider through setters and '..' operator
+              previousProductProviderInstance
+                ..authorizationToken = authProviderInstance.token
+                ..userIdentification = authProviderInstance.userIdentifier,
+          child: ProductItemWidget(
+              // Commented out the code to pass-on data through the constructor, as data is now being passed
+              // by a provider: ProductProvider, and the widget gets a hold of it through a listener set-up in
+              // its build method.
+              // productId: product.id,
+              // productTitle: product.title,
+              // productImageUrl: product.imageUrl,
+              ),
+        );
+      },
+      padding: EdgeInsets.only(
+        top: 10,
+        left: 10,
+        right: 10,
+        bottom: 50,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,61 +89,44 @@ class ProductGridWidget extends StatelessWidget {
     //         context)
     //     .products; // Fetching product list from the data provider: ProductsProvider
 
-    return Consumer<ProductsProvider>(
-      builder: (consumerContext, productsProvider, _) {
-        // The Conusmer provides access to an instance of provider, through which further
-        // calls or references to methods, attributes of the Provider class can be done
-        // to retrieve data, like the list of products below using the "products" get method.
-        // Also, the named attribute "child" has been ignored (with an "_") in the builder method, as the
-        // GridView.builder constructor itself doesn't contrsuct a widget to display static
-        // content like a label, using a Text widget.
+    // Additional check for data from parent widget ProductListingScreen, to know if user has chosen the favorites filter
+    // or not. Accordingly, the appropriate list of products are being rendered from the provider: ProductsProvider, to be
+    // displayed in a grid.
 
-        List<ProductProvider> productList;
+    // This also separates out the asynchronous and synchronous code flow between the display of only favorites and all
+    // products.
+    if (filterFavorites) {
+      return FutureBuilder(
+        future: Provider.of<ProductsProvider>(context).favoriteProducts,
+        builder: (builderContext, favoritesSnapshot) {
+          // ConnectionState.waiting means that the request is still being processed
+          if (favoritesSnapshot.connectionState == ConnectionState.waiting) {
+            return Center(child: CircularProgressIndicator(),);
+          } else if (favoritesSnapshot.hasError) {
+            return renderErrorWidget();
+          } else {
+            // Request has completed with a value
+            final productList = favoritesSnapshot.data as List<ProductProvider>;
+            return renderGridViewBuilder(productList);
+          }
+        },
+      );
+    } else {
+      return Consumer<ProductsProvider>(
+        builder: (consumerContext, productsProvider, _) {
+          // The Conusmer provides access to an instance of provider, through which further
+          // calls or references to methods, attributes of the Provider class can be done
+          // to retrieve data, like the list of products below using the "products" get method.
+          // Also, the named attribute "child" has been ignored (with an "_") in the builder method, as the
+          // GridView.builder constructor itself doesn't contrsuct a widget to display static
+          // content like a label, using a Text widget.
 
-        // Additional check for data from parent widget ProductListingScreen, to know if user has chosen the favorites filter
-        // or not. Accordingly, the appropriate list of products are being rendered from the provider: ProductsProvider, to be
-        // displayed in a grid.
+          List<ProductProvider> productList = productsProvider.products;
 
-        if (filterFavorites) {
-          productList = productsProvider.favoriteProducts;
-        } else {
-          productList = productsProvider.products;
-        }
-
-        return GridView.builder(
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            childAspectRatio: 3 / 2, // height should be greater than width
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-          ),
-          itemCount: productList.length,
-          itemBuilder: (builderContext, productIdx) {
-            //final ProductProvider product = productList[productIdx];
-
-            return ChangeNotifierProvider.value(
-              // Setting-up the provider above the ProductItemWidget, which listens for the ProductProvider
-              // data. If context is needed then the normal constructor can be used instead of the value
-              // contrsuctor.
-              value: productList[productIdx],
-              child: ProductItemWidget(
-                  // Commented out the code to pass-on data through the constructor, as data is now being passed
-                  // by a provider: ProductProvider, and the widget gets a hold of it through a listener set-up in
-                  // its build method.
-                  // productId: product.id,
-                  // productTitle: product.title,
-                  // productImageUrl: product.imageUrl,
-                  ),
-            );
-          },
-          padding: EdgeInsets.only(
-            top: 10,
-            left: 10,
-            right: 10,
-            bottom: 50,
-          ),
-        );
-      },
-    );
+          return renderGridViewBuilder(
+              productList); // grid with all products without the favorites filter
+        },
+      );
+    }
   }
 }
