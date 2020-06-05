@@ -175,15 +175,20 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
       }
     });
 
-    if (_userChosenAuthAction == AuthAction.SIGNUP) {
-      _authFormAnimeController
-          .forward(); // Run the animation forward for signup action,
-      // animating height when new form field is added.
-    } else {
-      _authFormAnimeController
-          .reverse(); // Run the animation backward for login action,
-      // animating height when existing form field is removed.
-    }
+    // Commented out as AnimatedContainer is being used in this version of code,
+    // which implicitly controls the animation based on given duration, curve and 
+    // toggle in height with auth action. So, there is no need for a controller
+    // when using a widget with built-in support to control/render animation.
+
+    // if (_userChosenAuthAction == AuthAction.SIGNUP) {
+    //   _authFormAnimeController
+    //       .forward(); // Run the animation forward for signup action,
+    //   // animating height when new form field is added.
+    // } else {
+    //   _authFormAnimeController
+    //       .reverse(); // Run the animation backward for login action,
+    //   // animating height when existing form field is removed.
+    // }
   }
 
   // Method to validate form and perform the save to allow login/signup
@@ -264,30 +269,24 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
               'https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Ftse3.mm.bing.net%2Fth%3Fid%3DOIP.eea9GWyoH31zEBu5khsKUwHaE8%26pid%3DApi&f=1',
             ),
           ),
-          AnimatedBuilder(
-            animation: _authFieldAnimation,
-            builder: (buildContext, builderChild) { // The builderChild argument is actually the same as the named "child" 
-                                                    // attribute in AnimatedBuilder widget (SingleChildScrollView).
-                                                    // It is passed in as a static child widget, meaning a widget not re-built
-                                                    // when the builder method in AnimatedBuilder runs. However, there are
-                                                    // parts in the widget tree that do need to rebuild depending on whether the
-                                                    // authentication action is a login or signup. Because that builderChild is
-                                                    // part of the widget returned by the builder, changes do reflect when the
-                                                    // builder method runs.
-                                                    // This mapping of "child" and "builderChild" widgets is especially useful
-                                                    // with code refactoring, where a small portion of the widget tree until the
-                                                    // first child can be made as the widget returned by the builder method and
-                                                    // rest of the widget tree can be made as the child.
-              return Container(
-                //height: MediaQuery.of(context).size.height * 0.55,
-                height: _authFieldAnimation.value
-                    .height, // Set the current height value from the animation instance
-                // as the height of this container.
-                alignment: Alignment.bottomCenter,
-                margin: EdgeInsets.all(14),
-                child: builderChild,
-              );
-            },
+          // AnimatedContainer has built-in logic to perform animation by itself without the controller or animation instances.
+          // However, need to provide the duration of animation (given to controller when using AnimatedBuilder) and the
+          // animation curve (given to the animation instance when using AnimatedBuilder) to render the animation in the UI.
+          // So, AnimatedContainer is a better built-in widget than AnimatedBuilder with tween animation when attributes like
+          // height, width, padding,... of a Container widget need to be animated as part of their change.
+          // As an animation instance is not being used here, the normal auth action flag is being used below for setting a 
+          // different height depending on the action, which will be factored in by the in-built animator to render the 
+          // desired animation.
+          AnimatedContainer(
+            duration: Duration(milliseconds: 450,),
+            curve: Curves.easeInOutBack,
+            //height: MediaQuery.of(context).size.height * 0.55,
+            height: (_userChosenAuthAction == AuthAction.SIGNUP) ? 360 : 280,
+            // height: _authFieldAnimation.value
+            //     .height, // Set the current height value from the animation instance
+            // as the height of this container.
+            alignment: Alignment.bottomCenter,
+            margin: EdgeInsets.all(14),
             child: SingleChildScrollView(
               child: Form(
                 key: _formState, // Gives access to this Form's state
