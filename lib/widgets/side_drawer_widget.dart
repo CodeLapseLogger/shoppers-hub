@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../screens/authentication_screen.dart';
 import '../screens/orders_screen.dart';
 import '../screens/product_manager_screen.dart';
 
 import '../providers/authentication_provider.dart';
+
+import '../helpers/custom_page_transition_animations.dart';
 
 class SideDrawerWidget extends StatelessWidget {
   @override
@@ -45,8 +46,14 @@ class SideDrawerWidget extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 )),
             onTap: () {
-              Navigator.of(context)
-                  .pushReplacementNamed(OrdersScreen.routeName);
+              // Navigator.of(context)
+              //     .pushReplacementNamed(OrdersScreen.routeName);
+
+              Navigator.of(context).pushReplacement(
+                CustomPageRoute(
+                  builder: (builderContext) => OrdersScreen(),
+                ),
+              );
             },
           ),
           Divider(),
@@ -75,9 +82,9 @@ class SideDrawerWidget extends StatelessWidget {
               ),
             ),
             onTap: () {
-              Provider.of<AuthenticationProvider>(context, listen: false).logout(); // Reset authentication data leading to user logout.
-              Navigator.of(context)
-                  .pushReplacementNamed('/');
+              Provider.of<AuthenticationProvider>(context, listen: false)
+                  .logout(); // Reset authentication data leading to user logout.
+              Navigator.of(context).pushReplacementNamed('/');
             },
           ),
           Divider(),

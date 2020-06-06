@@ -15,6 +15,8 @@ import './providers/cart_provider.dart';
 import './providers/orders_provider.dart';
 import './providers/authentication_provider.dart';
 
+import './helpers/custom_page_transition_animations.dart';
+
 void main() => runApp(ShoppingApp());
 
 // Main material app widget to launch the shopping app.
@@ -99,6 +101,19 @@ class ShoppingApp extends StatelessWidget {
               primarySwatch: Colors.purple,
               accentColor: Colors.deepOrange,
               fontFamily: 'Lato',
+              // Configuring custom page transition animation
+              // by setting up the pageTransitionsTheme here,
+              // through the custom class instance: 
+              // CustomPageTransitionsBuilder(), intead of the 
+              // default page transitions. These will be picked
+              // by all page transitions via 
+              // Theme.of(context).pageTransitionsTheme
+              pageTransitionsTheme: PageTransitionsTheme(
+                builders: {
+                  TargetPlatform.android: CustomPageTransitionsBuilder(),
+                  TargetPlatform.iOS: CustomPageTransitionsBuilder(),
+                }
+              ),
             ),
             home: (authProvider.isAuthenticated())
                 ? ProductsListingScreen()
