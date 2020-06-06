@@ -24,49 +24,70 @@ class _OrderItemWidgetState extends State<OrderItemWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 8,
+    return AnimatedContainer(
+      duration: Duration(
+        milliseconds: 300,
       ),
-      elevation: 8,
-      child: Column(
-        // Wrapped in a column to allow conditional inclusion of widget with order details toward the end.
-        children: <Widget>[
-          ListTile(
-            leading: Text(
-              '\$${widget.orderData.orderTotal.toStringAsFixed(2)}',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey,
+      height: (isExpanded)
+          ? min(widget.orderData.orderedItems.length * 25.0 + 110.0,
+              220.0) // 25.0 is the estimated pixels for each item
+          // + 110.0 for additional spacing with rest of
+          // order data and spacing. So, having an
+          // estimate of things does help in formulating
+          // the UI layout and feel.
+          : 100, // 100px when not expanded
+      child: Card(
+        margin: EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 8,
+        ),
+        elevation: 8,
+        child: Column(
+          // Wrapped in a column to allow conditional inclusion of widget with order details toward the end.
+          children: <Widget>[
+            ListTile(
+              leading: Text(
+                '\$${widget.orderData.orderTotal.toStringAsFixed(2)}',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey,
+                ),
+              ),
+              title: Text('Order # ${widget.orderNum}'),
+              subtitle: Text(
+                  '${DateFormat.yMMMd().format(widget.orderData.orderTimeStamp)}'),
+              trailing: IconButton(
+                icon: (isExpanded)
+                    ? Icon(Icons.expand_more)
+                    : Icon(Icons.expand_less),
+                onPressed: () {
+                  setState(() {
+                    isExpanded =
+                        !isExpanded; // toggle/negate the existing flag value.
+                  });
+                },
               ),
             ),
-            title: Text('Order # ${widget.orderNum}'),
-            subtitle: Text(
-                '${DateFormat.yMMMd().format(widget.orderData.orderTimeStamp)}'),
-            trailing: IconButton(
-              icon: (isExpanded)
-                  ? Icon(Icons.expand_more)
-                  : Icon(Icons.expand_less),
-              onPressed: () {
-                setState(() {
-                  isExpanded =
-                      !isExpanded; // toggle/negate the existing flag value.
-                });
-              },
-            ),
-          ),
-          if (isExpanded)
-            Container(
-              height: min(
-                  widget.orderData.orderedItems.length * 25.0 + 10.0, 180.0), // 20.0 is the estimated pixels for each item
-                                                                              // + 10.0 for additional spacing. So, having an
-                                                                              // estimate of things does help in formulating 
-                                                                              // the UI layout and feel.
+            AnimatedContainer(
+              // Turned normal container to AnimatedContainer, removing the if-condition
+              // and putting it in the height which can be the input data to AnimatedContainer
+              // to carry out the animation. Seems default is a Tween<double> animation with
+              // curve: linear.
+              duration: Duration(
+                milliseconds: 300,
+              ),
+              height: isExpanded
+                  ? min(widget.orderData.orderedItems.length * 25.0 + 10.0,
+                      180.0) // 25.0 is the estimated pixels for each item
+                  // + 10.0 for additional spacing. So, having an
+                  // estimate of things does help in formulating
+                  // the UI layout and feel.
+                  : 0, // 0px when not expanded
               padding: EdgeInsets.all(10),
-              child: ListView.builder( // Wrapped in a container with a set height does help with having an estimate of the widget layout
-                                       // with this inner-most ListView widget wrapped in column and an outer ListView.
+              child: ListView.builder(
+                // Wrapped in a container with a set height does help with having an estimate of the widget layout
+                // with this inner-most ListView widget wrapped in column and an outer ListView.
                 itemBuilder: (orderItem, itemIdx) {
                   return Row(
                     // Not wrapped in a ListTile, as this is a sub-widget of a outer ListTile, and content should blend in.
@@ -92,7 +113,8 @@ class _OrderItemWidgetState extends State<OrderItemWidget> {
                 itemCount: widget.orderData.orderedItems.length,
               ),
             ),
-        ],
+          ],
+        ),
       ),
     );
   }

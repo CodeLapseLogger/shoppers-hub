@@ -104,7 +104,7 @@ class ProductDetailScreen extends StatelessWidget {
               child: Text(
                 prodItem.description,
                 style: TextStyle(
-                  fontSize: 15,
+                  fontSize: 17,
                   color: Colors.grey,
                 ),
                 textAlign: TextAlign.center,
