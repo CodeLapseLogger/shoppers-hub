@@ -55,16 +55,28 @@ class ProductItemWidget extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         child: GridTile(
           child: GestureDetector(
-            child: FadeInImage( // Animated image widget to display a placeholder image while
-                                // the actual image is loading and to fade it in once fully
-                                // loaded over the network.
-                                // placeholder and image are image providers and not Image widgets
-                                // like Image.network().
-              placeholder: AssetImage("assets/images/product-placeholder.png",),
-              image: NetworkImage(
-                product.imageUrl,
+            child: Hero(
+              // Hero animation is to enable a smooth transition of bringing in an image over from previous
+              // screen to the current screen.
+              // Essentially used between two screens and same widget and tag named attribute, is to be setup
+              // in both source and target screens to map and enable the image transition between the two.
+              tag: product
+                  .id, // Tag to probably uniquely identify the target of animated transition in the
+              // previous screen when transitioning to the next screen.
+              child: FadeInImage(
+                // Animated image widget to display a placeholder image while
+                // the actual image is loading and to fade it in once fully
+                // loaded over the network.
+                // placeholder and image are image providers and not Image widgets
+                // like Image.network().
+                placeholder: AssetImage(
+                  "assets/images/product-placeholder.png",
+                ),
+                image: NetworkImage(
+                  product.imageUrl,
+                ),
+                fit: BoxFit.cover,
               ),
-              fit: BoxFit.cover,
             ),
             onTap: () {
               // Code to push ProductDetailScreen on to Navigator as an anonymous/ or un-named route

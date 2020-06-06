@@ -65,11 +65,19 @@ class ProductDetailScreen extends StatelessWidget {
       body: SingleChildScrollView(
         child: Column(
           children: <Widget>[
-            Image.network(
-              prodItem.imageUrl,
-              fit: BoxFit.contain,
-              height: MediaQuery.of(context).size.height * 0.72,
-              width: MediaQuery.of(context).size.width,
+            Hero(
+              // This Hero widget enables smooth transition from ProdItemWidget
+              // in ProductsListingScreen to this screen through the image set as
+              // "child" in Image.network. To establush this mapping, same Hero
+              // widget with same "tag" attribute value has been setup in
+              // ProdItemWidget as well for the same image widget.
+              tag: prodItem.id,
+              child: Image.network(
+                prodItem.imageUrl,
+                fit: BoxFit.contain,
+                height: MediaQuery.of(context).size.height * 0.72,
+                width: MediaQuery.of(context).size.width,
+              ),
             ),
             SizedBox(
               height: MediaQuery.of(context).size.height * 0.05,
