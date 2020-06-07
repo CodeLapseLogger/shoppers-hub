@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'dart:math';
 
 import "package:flutter/material.dart";
 import "package:provider/provider.dart";
@@ -17,7 +18,7 @@ class AuthenticationScreen extends StatefulWidget {
 }
 
 class _AuthenticationScreenState extends State<AuthenticationScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   AuthAction _userChosenAuthAction =
       AuthAction.LOGIN; // Default action for screen load
   FocusNode _passwordFocus =
@@ -126,10 +127,9 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
       begin: Offset(-1.0, 0),
       end: Offset(0.0, 0.0),
     ).animate(CurvedAnimation(
-      parent: _authFormAnimeController,
-      curve: Curves.easeInBack,
-      reverseCurve: Curves.easeOutBack
-    ));
+        parent: _authFormAnimeController,
+        curve: Curves.easeInBack,
+        reverseCurve: Curves.easeOutBack));
   }
 
   Future<void> showDialogWrapper(String errMsg, String dialogButtonText) async {
@@ -292,6 +292,22 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
             alignment: Alignment.topCenter,
             child: Image.network(
               'https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Ftse3.mm.bing.net%2Fth%3Fid%3DOIP.eea9GWyoH31zEBu5khsKUwHaE8%26pid%3DApi&f=1',
+            ),
+          ),
+          Container(
+            height: MediaQuery.of(context).size.height * 0.1,
+            width: MediaQuery.of(context).size.width * 0.8,
+            alignment: Alignment.center,
+            padding: EdgeInsets.all(12),
+            transform: Matrix4.rotationZ(-8*pi/180)..translate(65.0, -490.0,),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(20,),color: Color(0xff515177)/*Colors.amber.withOpacity(0.9)*/,),
+            child: Text(
+              'Shoppers Hub',
+              style: TextStyle(
+                fontSize: 40,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
             ),
           ),
           // AnimatedContainer has built-in logic to perform animation by itself without the controller or animation instances.
