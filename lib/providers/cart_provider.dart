@@ -26,16 +26,17 @@ class CartItem {
 // notifying the registered listeners in the widget tree for data changes from this Cart class turned data provider.
 class CartProvider with ChangeNotifier {
   Map<String, CartItem> _cartItems = {};
-  String authToken=""; // To store auth token to be used with the Firebase API calls.
-  String userId=""; // To store user-id of the logged-in user
+  String authToken =
+      ""; // To store auth token to be used with the Firebase API calls.
+  String userId = ""; // To store user-id of the logged-in user
 
   // Setter to set the token property of the provider
-  set authorizationToken(String userToken){
-      authToken = userToken;
+  set authorizationToken(String userToken) {
+    authToken = userToken;
   }
 
   // Setter to set the userId property of the provider
-  set userIdentification(String uId){
+  set userIdentification(String uId) {
     userId = uId;
   }
 
@@ -58,7 +59,6 @@ class CartProvider with ChangeNotifier {
 
     // Run code to only process a non-empty cart
     if (!(json.decode(getResponse.body) == null)) {
-      
       _cartItems.clear(); // Clear old data from the local copy
 
       // Extract Firebase data from response body and repopulate _cartItems with that data
@@ -138,7 +138,8 @@ class CartProvider with ChangeNotifier {
     var client = http.Client();
 
     try {
-      final getResponse = await client.get(FIREBASE_URL_C + '/$userId.json?auth=$authToken');
+      final getResponse =
+          await client.get(FIREBASE_URL_C + '/$userId.json?auth=$authToken');
 
       print('Cart get response status code: ${getResponse.statusCode}');
       print('Cart get response body: ${json.decode(getResponse.body)}');
@@ -217,7 +218,8 @@ class CartProvider with ChangeNotifier {
           print('Existing cart item name: ${existingCartEntryData['name']}');
           // so, update the existing product entry by incrementing its quantity by 1.
           await client.patch(
-            FIREBASE_URL_C + '/$userId/$existingCartItemId.json?auth=$authToken',
+            FIREBASE_URL_C +
+                '/$userId/$existingCartItemId.json?auth=$authToken',
             body: json.encode(
               {
                 '$productId': {
@@ -327,8 +329,8 @@ class CartProvider with ChangeNotifier {
     } else {
       try {
         // RESTFUL DELETE API call to delete the cart item with given id in Firebase backend
-        final deleteResponse =
-            await http.delete(FIREBASE_URL_C + '/$userId/${deletedItem.id}.json?auth=$authToken');
+        final deleteResponse = await http.delete(
+            FIREBASE_URL_C + '/$userId/${deletedItem.id}.json?auth=$authToken');
 
         print(
             'Cart item delete operation respose status code: ${deleteResponse.statusCode}');
@@ -356,7 +358,7 @@ class CartProvider with ChangeNotifier {
 
   // Method to reduce the quantity of a product in cart by 1, and to delete the entire product from the cart in case
   // its quantity would get to 0 after the reduction of its quantity.
-  CartItem reduceProductQuantityByOne(String productId) {
+  Future<CartItem> reduceProductQuantityByOne(String productId) async {
     // Need to check the product's mapped cart item quantity for appropriate action. That is to just update or delete the whole entry.
 
     CartItem itemAfterStateChange;
@@ -374,9 +376,54 @@ class CartProvider with ChangeNotifier {
           );
         },
       );
+
+      // Make the update in the backend cart data as well
+      try {
+        final cartItemUrl = FIREBASE_URL_C +
+            '/$userId/${itemAfterStateChange.id}/$productId.json?auth=$authToken';
+
+        final putResponse = await http.put(
+          cartItemUrl,
+          body: json.encode(
+            {
+              'name': itemAfterStateChange.name,
+              'price': itemAfterStateChange.price,
+              'quantity': itemAfterStateChange.quantity
+            },
+          ),
+        );
+
+        print(json.decode(
+          putResponse.body,
+        ));
+
+      } catch (error) {
+        print(error);
+        throw error;
+      }
     } else {
       // Current product quantity is 1, so, reducing it to 0 essentially implies a non-existant cart item and hence the need for its deletion.
       itemAfterStateChange = _cartItems.remove(productId);
+
+      // Delete the cart item from the backend as well
+      // Make the update in the backend cart data as well
+      try {
+        final cartItemUrl = FIREBASE_URL_C +
+            '/$userId/${itemAfterStateChange.id}.json?auth=$authToken';
+
+        final deleteResponse = await http.delete(
+          cartItemUrl,
+        );
+
+        print(json.decode(
+          deleteResponse.body,
+        ));
+        
+      } catch (error) {
+        print(error);
+        throw error;
+      }
+
     }
 
     notifyListeners(); // Notifies all listeners about the change in data state.
@@ -384,16 +431,14 @@ class CartProvider with ChangeNotifier {
   }
 
   // Method for listeners to clear all cart items
-  Future<void> clear() async{
-
-    try{
-      await http.delete(FIREBASE_URL_C + '/$userId.json?auth=$authToken'); // RESTFUL DELETE request to clear out all the cart items as a collection.
-    }
-    catch(error){
+  Future<void> clear() async {
+    try {
+      await http.delete(FIREBASE_URL_C +
+          '/$userId.json?auth=$authToken'); // RESTFUL DELETE request to clear out all the cart items as a collection.
+    } catch (error) {
       print(error);
       throw error;
     }
-    
 
     _cartItems.clear(); // empties the local cart item data map.
 

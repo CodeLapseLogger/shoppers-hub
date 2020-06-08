@@ -5,6 +5,7 @@ import '../screens/product_detail_screen.dart';
 
 import '../providers/product_provider.dart';
 import '../providers/cart_provider.dart';
+import '../providers/authentication_provider.dart';
 
 class ProductItemWidget extends StatelessWidget {
   // final String productId;
@@ -42,6 +43,17 @@ class ProductItemWidget extends StatelessWidget {
     // rebuild.
 
     final CartProvider cart = Provider.of<CartProvider>(context, listen: false);
+
+    final AuthenticationProvider auth = Provider.of<AuthenticationProvider>(context); // Get access to and listen to
+                                                                                      // changes in authentication details.
+
+    // Set auth details in the ProductProvider instance by
+    // calling its set methods for auth token and user-id
+    // with values returned by corresponding get methods in
+    // Authentication provider instance. The "=" is used to
+    // perform the value assignment.
+    product.authorizationToken = auth.token;
+    product.userIdentification = auth.userIdentifier;
 
     return Container(
       decoration: BoxDecoration(
@@ -125,7 +137,11 @@ class ProductItemWidget extends StatelessWidget {
 
                     try {
                       await product
-                          .switchProductFavoriteState(); // wait until the state switch completes
+                          .switchProductFavoriteState(); // Wait until the state switch completes.
+                                                         // The auth details set above would be used
+                                                         // to in the REST api call to set the favorite
+                                                         // status for this product in the corresponding
+                                                         // user favorite data collection. 
 
                       Scaffold.of(context)
                           .hideCurrentSnackBar(); // Hide existing Snackbar before popping in the new one
@@ -206,9 +222,9 @@ class ProductItemWidget extends StatelessWidget {
                     ),
                     action: SnackBarAction(
                         label: "UNDO",
-                        onPressed: () {
+                        onPressed: () async{
                           CartItem revertedCartItem =
-                              cart.reduceProductQuantityByOne(product.id);
+                              await cart.reduceProductQuantityByOne(product.id);
                           print(
                               'Item name: ${revertedCartItem.name}, quantity before undo: $currentItemQuantity, quantity after undo: ${revertedCartItem.quantity}');
                           Scaffold.of(context).showSnackBar(

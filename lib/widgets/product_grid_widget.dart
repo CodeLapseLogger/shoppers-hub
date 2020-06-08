@@ -5,7 +5,6 @@ import '../widgets/product_item_widget.dart';
 
 import '../providers/products_provider.dart';
 import '../providers/product_provider.dart';
-import '../providers/authentication_provider.dart';
 
 class ProductGridWidget extends StatelessWidget {
   final bool filterFavorites;
@@ -13,7 +12,6 @@ class ProductGridWidget extends StatelessWidget {
   ProductGridWidget({
     @required this.filterFavorites,
   });
-
 
   Widget renderErrorWidget() {
     return Center(
@@ -42,25 +40,16 @@ class ProductGridWidget extends StatelessWidget {
       itemBuilder: (builderContext, productIdx) {
         //final ProductProvider product = productList[productIdx];
 
-        return ChangeNotifierProxyProvider<AuthenticationProvider,
-            ProductProvider>(
-          // Setting-up the provider above the ProductItemWidget, which listens for the ProductProvider
-          // data. If context is needed then the normal constructor can be used instead of the value
-          // contrsuctor.
-          create: (builderContext) => ProductProvider(
-            // Base instance for data source
-            id: products[productIdx].id,
-            title: products[productIdx].title,
-            price: products[productIdx].price,
-            description: products[productIdx].description,
-            imageUrl: products[productIdx].imageUrl,
-            isFavorite: products[productIdx].isFavorite,
-          ),
-          update: (builderContext, authProviderInstance,
-                  previousProductProviderInstance) => // Update auth data from auth provider through setters and '..' operator
-              previousProductProviderInstance
-                ..authorizationToken = authProviderInstance.token
-                ..userIdentification = authProviderInstance.userIdentifier,
+        return ChangeNotifierProvider.value(
+          // The earlier ChangeNotifierProxyProvider<AuthenticationProvider, ProductProvider>
+          // instance has been replaced as it disposes off the passed in ProductProvider instance
+          // from the local data array resulting in an app crash. So, the required auth details
+          // needed for user authorization with REST api call, to update product favorite status,
+          // is being accessed through a registered listener for AuthenticationProvider data inside
+          // ProductItemWidget. Accordingly, auth details are being set in the ProductProvider instance
+          // which is being sourced from this ChangeNotifierProvider instance and listened to in 
+          // ProductItemWidget.
+          value: products[productIdx],
           child: ProductItemWidget(
               // Commented out the code to pass-on data through the constructor, as data is now being passed
               // by a provider: ProductProvider, and the widget gets a hold of it through a listener set-up in
@@ -101,7 +90,9 @@ class ProductGridWidget extends StatelessWidget {
         builder: (builderContext, favoritesSnapshot) {
           // ConnectionState.waiting means that the request is still being processed
           if (favoritesSnapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator(),);
+            return Center(
+              child: CircularProgressIndicator(),
+            );
           } else if (favoritesSnapshot.hasError) {
             return renderErrorWidget();
           } else {

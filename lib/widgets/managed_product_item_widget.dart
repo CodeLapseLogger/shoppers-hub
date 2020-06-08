@@ -20,6 +20,9 @@ class ManagedProductItemWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
+    final scaffoldRef = Scaffold.of(context);
+
     return Column(
       children: <Widget>[
         ListTile(
@@ -97,10 +100,10 @@ class ManagedProductItemWidget extends StatelessWidget {
                       // For better user experience (UX), the nearest encapsulating Scaffold widget (screen: ProductManagerScreen) up the widget tree
                       // will have a snackbar displayed at the bottom to notify user of the failed deletion.
 
-                      Scaffold.of(context).hideCurrentSnackBar(); // Hides any existing snakbar before showing a new one 
+                      scaffoldRef.hideCurrentSnackBar(); // Hides any existing snakbar before showing a new one 
                                                                   // with below code.
 
-                      Scaffold.of(context).showSnackBar(
+                      scaffoldRef.showSnackBar(
                         SnackBar(
                           content: Text(
                             'Deletion Failed !',

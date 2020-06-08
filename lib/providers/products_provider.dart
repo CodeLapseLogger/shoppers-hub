@@ -20,7 +20,7 @@ class ProductsProvider with ChangeNotifier {
   List<ProductProvider> _products =
       []; // The '_' is to signify that the list is to be private and not accesible outside
   // this class.
-  
+
   String
       authToken; // Stores the authentication token returned by Firebase during user authentication.
   // Will be used in all Firebase REST API calls to authenticate and grant appropriate
@@ -57,15 +57,18 @@ class ProductsProvider with ChangeNotifier {
   // maintained in a Provider class, local data copy is being maintained in sycn with that of database data. If the data was
   // being directly rendered in the widget (StreamBuilder), it would be automatically rebuilt with each data change streamed
   // from the database. So, resorting to the http package to manually make data changes through RESTful API calls.
-  Future<void> refreshProducts([bool isReqUserSpecific = false]) async { // The [] syntax is to make the positional argument
-                                                                         // isReqUserSpecific optional, by giving a default
-                                                                         // value of "false". Also that flag is to have a
-                                                                         // custom url for rendering all or user-specific
-                                                                         // products.
+  Future<void> refreshProducts([bool isReqUserSpecific = false]) async {
+    // The [] syntax is to make the positional argument
+    // isReqUserSpecific optional, by giving a default
+    // value of "false". Also that flag is to have a
+    // custom url for rendering all or user-specific
+    // products.
 
-    String remainingQueryString = ''; // query string for data filtration on server side
+    String remainingQueryString =
+        ''; // query string for data filtration on server side
 
-    if(isReqUserSpecific){ // Request is to get user-specific products
+    if (isReqUserSpecific) {
+      // Request is to get user-specific products
       remainingQueryString = 'orderBy="ownerId"&equalTo="$userId"';
     }
 
@@ -124,7 +127,6 @@ class ProductsProvider with ChangeNotifier {
     //return;
   }
 
-  
   /* ************************************************************************************************************* *
    * Since, add/update/delete can only be for user-specific products would it be better to have a different list   *
    * for data manipulation rather than _products itself ?                                                          *
@@ -147,7 +149,7 @@ class ProductsProvider with ChangeNotifier {
    * custom data load happening in one place refreshProducts(), giving code better readability.                    *
    * Hence, that is the final data management approach implemented in this Provider class.                         *
    * ************************************************************************************************************* */
-   
+
   Future<void> addProduct(ProductProvider newProduct) async {
     // async/await to give the asynchronous code more readability
     // by fitting well with the synchronous code flow. With this
@@ -213,8 +215,7 @@ class ProductsProvider with ChangeNotifier {
     // with a spread operator.
   }
 
-  
-  // Method to render a copy of a product with matching input product id. Used only in 
+  // Method to render a copy of a product with matching input product id. Used only in
   ProductProvider getProductById(String id) {
     return [..._products].firstWhere((product) {
       return product.id ==
@@ -232,13 +233,16 @@ class ProductsProvider with ChangeNotifier {
     // Setting getResponse to return value of the http.get() will retain the Future<Response> and not the
     // completed value.
 
+    List<ProductProvider> favoriteProducts;
+    Map<String, dynamic> favoritesData;
+
     try {
       final getResponse = await http.get(userFavoritesUrl);
 
       // Extract the favorites data(Map: productId->isFavorite) from the response body
-      final Map<String, dynamic> favoritesData = json.decode(getResponse.body);
+      favoritesData = json.decode(getResponse.body);
 
-      return _products.where((product) {
+      favoriteProducts = _products.where((product) {
         return favoritesData.containsKey(product.id) &&
             favoritesData[product.id]
                 as bool; // test to know if the current product exists in the favoritesData and is marked as favorite.
@@ -248,6 +252,35 @@ class ProductsProvider with ChangeNotifier {
       print(error);
       throw error;
     }
+
+    // Cleanup marked favorite products that are owned and now deleted by other users
+    final deletedProductsUrl = FIREBASE_URL_DP + '.json?auth=$authToken';
+
+    // Get deleted product data and cleanup corresponding favorites data specific to
+    // this user.
+    try {
+      final deletedProductsGetResponse = await http.get(deletedProductsUrl);
+
+      // Decode the product data as a map of <productId, isDeleted> key-value pairs.
+      final Map<String, dynamic> deletedProductsData =
+          json.decode(deletedProductsGetResponse.body);
+
+      // Check if each of the deleted product has an entry in the favorites data and 
+      // accordingly, delete it from the user-specific favorites data in the backend.
+      deletedProductsData.forEach((deletedProductId,deletedProductData) {
+        if (favoritesData.containsKey(deletedProductId)) {
+          final deleteFavoriteUrl = FIREBASE_URL_UF +
+              '/$userId/$deletedProductId.json?auth=$authToken';
+          http.delete(deleteFavoriteUrl).then((deleteFavoriteResponse) => print(
+              'Deleted favorite entry for product with id: $deletedProductId'));
+        }
+      });
+    } catch (error) {
+      print(error);
+      throw error;
+    }
+
+    return favoriteProducts;
   }
 
   // Update existing product
@@ -306,7 +339,7 @@ class ProductsProvider with ChangeNotifier {
     notifyListeners(); // Notify the delete to listeners allowing the widget tree to be accordingly refreshed
 
     // Perform the actual delete in the backend database.
-    final url = FIREBASE_URL_P +
+    var url = FIREBASE_URL_P +
         '/$id.json?auth=$authToken'; // url to the product entry in the database to be deleted. Identified by the id in
     // the url.
     try {
@@ -316,10 +349,59 @@ class ProductsProvider with ChangeNotifier {
     } catch (error) {
       // There was some trouble with the backend deletion. Undo the local delete (by inserting back) and proprogate
       // the error back to the caller widget to perform a UI action that can inform the user of the failed deletion.
-
-      _products.insert(removedProductPos, removedProduct);
+      await addProduct(
+          removedProduct); // Addback the removed product, both in the database and the local data array.
       notifyListeners(); // Can have multiple calls to notifyListeners() in the same method, for each of the data manipulation
       // operations.
+
+      throw error;
+    }
+
+    // Cleanup the removed product entry if marked as favorite by this user (also the product owner).
+    // Won't be able to cleanup this deleted product entry in favoites of other users as it is user-specific
+    // and authentication would fail with the current auth token. So, need to track the deleted product-ids as
+    // well in the Firestore backend, which can be referenced when loading favorites and accordingly looked-up
+    // to delete any matching product entries.
+
+    final userProdFavoriteUrl =
+        FIREBASE_URL_UF + '/$userId/$id.json?auth=$authToken';
+
+    try {
+      // Delete all of this product data instances from user-favorites collection as well
+
+      final deleteUserFavoritesResponse =
+          await http.delete(userProdFavoriteUrl);
+      print(
+          'User favorite deletion response: ${json.decode(deleteUserFavoritesResponse.body)}');
+    } catch (error) {
+      print(error);
+      throw error;
+    }
+
+    // Log the deleted product-id to lookup and cleanup its favorite entry in other users data, when they
+    // login and try to access their favorites.
+    url = FIREBASE_URL_DP + '/$id.json?auth=$authToken';
+
+    try {
+      final postResponse = await http.put( // To be RESTFUL, the update through PUT request has to be specific
+                                           // to the document (with "id") and not the collection, like GET, POST.
+        url,
+        body: json.encode(
+          true, // All product-ids as keys will have "true"
+          // as the value signifying that it it has been
+          // deleted. The '[]' operator will be used to
+          // lookup the product-id which will return true or
+          // null depending on the existence of the product-id
+          // in the map. Accordingly, the favorite entry in the
+          // user-data will be deleted through a REST api call.
+        ),
+      );
+
+      print(json.decode(
+        postResponse.body,
+      ));
+    } catch (error) {
+      print(error);
       throw error;
     }
   }

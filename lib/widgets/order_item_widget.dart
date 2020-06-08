@@ -29,8 +29,8 @@ class _OrderItemWidgetState extends State<OrderItemWidget> {
         milliseconds: 300,
       ),
       height: (isExpanded)
-          ? min(widget.orderData.orderedItems.length * 25.0 + 110.0,
-              220.0) // 25.0 is the estimated pixels for each item
+          ? min(widget.orderData.orderedItems.length * 30.0 + 120.0,
+              240.0) // 25.0 is the estimated pixels for each item
           // + 110.0 for additional spacing with rest of
           // order data and spacing. So, having an
           // estimate of things does help in formulating
@@ -78,8 +78,8 @@ class _OrderItemWidgetState extends State<OrderItemWidget> {
                 milliseconds: 300,
               ),
               height: isExpanded
-                  ? min(widget.orderData.orderedItems.length * 25.0 + 10.0,
-                      180.0) // 25.0 is the estimated pixels for each item
+                  ? min(widget.orderData.orderedItems.length * 30.0 + 20.0,
+                      200.0) // 25.0 is the estimated pixels for each item
                   // + 10.0 for additional spacing. So, having an
                   // estimate of things does help in formulating
                   // the UI layout and feel.
